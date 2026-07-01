@@ -21,3 +21,9 @@ class CarPublic(BaseModel):
 
 class CarList(BaseModel):
     cars: list[CarPublic]
+
+
+# --- Autenticação (resposta do login, não é tabela) ------------------------
+class Token(BaseModel):
+    access_token: str
+    token_type: str = 'bearer'

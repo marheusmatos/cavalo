@@ -21,6 +21,28 @@ class Settings(BaseSettings):
     # No Docker é montado via env; localmente aponta para ../frontend.
     FRONTEND_DIR: str = str(BACKEND_DIR.parent / 'frontend')
 
+    # --- Autenticação usuário/senha (login JWT em /auth/token) -------------
+    AUTH_USERNAME: str = 'admin'
+    AUTH_PASSWORD: str = 'admin'
+    # Segredo para assinar/verificar o JWT. TROQUE em produção (>= 32 bytes).
+    JWT_SECRET_KEY: str = 'change-me-in-production-please-32b!'
+    JWT_ALGORITHM: str = 'HS256'
+    JWT_EXPIRE_MINUTES: int = 60
+
+    # --- Login com Google (OAuth2, fluxo pelo backend) --------------------
+    GOOGLE_CLIENT_ID: str = ''
+    GOOGLE_CLIENT_SECRET: str = ''
+    # Só e-mails deste domínio podem entrar via Google (senão 403).
+    ALLOWED_EMAIL_DOMAIN: str = 'shopee.com'
+    # Segredo da sessão (usada pelo Authlib p/ o state anti-CSRF do OAuth).
+    SESSION_SECRET_KEY: str = 'change-me-session-secret-32-bytes!'
+    # Para onde o callback redireciona após emitir o JWT.
+    FRONTEND_URL: str = 'http://localhost:8000/'
+
+    # --- Rate limit (fastapi-guard, sem Redis) ----------------------------
+    RATE_LIMIT_REQUESTS: int = 60
+    RATE_LIMIT_WINDOW: int = 60
+
     @field_validator('DATABASE_URL')
     @classmethod
     def _resolve_sqlite_path(cls, value: str) -> str:

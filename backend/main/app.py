@@ -7,8 +7,8 @@ from guard import SecurityMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from config import guard, security_config
-from main.routers import auth_router
-from main.routers import router as car_router
+from main.routes.auth import auth_router
+from main.routes.routers import car_router
 from main.settings import settings
 
 app = FastAPI(title='Fast API Template', description='Template', version='0.1.0')

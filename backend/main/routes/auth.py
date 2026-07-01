@@ -3,22 +3,13 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from config import guard
-from main.database import get_session
-from main.models import Car
 from main.oauth import google_enabled, oauth
-from main.schemas import *
-from main.security import (
-    create_access_token,
-    get_current_user,
-    verify_credentials,
-)
+from main.schemas import Token
+from main.security import create_access_token, verify_credentials
 from main.settings import settings
 
-router = APIRouter(prefix='/api/v1/cars', tags=['cars'])
 auth_router = APIRouter(prefix='/auth', tags=['auth'])
 
 
@@ -93,38 +84,3 @@ async def google_callback(request: Request):
     jwt_token = create_access_token(email)
     params = urlencode({'token': jwt_token})
     return RedirectResponse(url=f'{settings.FRONTEND_URL}#{params}')
-
-
-@router.post(
-    '/', response_model=CarPublic, status_code=status.HTTP_201_CREATED
-)
-@guard.rate_limit(
-    requests=settings.RATE_LIMIT_REQUESTS, window=settings.RATE_LIMIT_WINDOW
-)
-async def create_car(
-    request: Request,
-    car: CarSchema,
-    session: Session = Depends(get_session),
-    current_user: str = Depends(get_current_user),
-):
-    car = Car(**car.model_dump())
-    session.add(car)
-    session.commit()
-    session.refresh(car)
-    return car
-
-
-@router.get('/', response_model=CarList)
-@guard.rate_limit(
-    requests=settings.RATE_LIMIT_REQUESTS, window=settings.RATE_LIMIT_WINDOW
-)
-async def list_cars(
-    request: Request,
-    session: Session = Depends(get_session),
-    current_user: str = Depends(get_current_user),
-    offset: int = 0,
-    limit: int = 100,
-):
-    query = session.scalars(select(Car).offset(offset).limit(limit))
-    cars = query.all()
-    return {'cars': cars}

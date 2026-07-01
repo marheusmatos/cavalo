@@ -1,0 +1,37 @@
+# ─── Segredos / credenciais (NUNCA versionar) ──────────────────────────────
+config.json
+config_ws.json
+client_secret_drive.json
+token_drive.json
+service_account.json
+*secret*.json
+*token*.json
+.env
+.env.*
+
+# ─── Dados de runtime (gerados pelo app) ───────────────────────────────────
+dados/
+Consolidados Reais/
+*.log
+pmo_errors.log
+_sheets_push_log.json
+
+# ─── Planilhas locais / artefatos de trabalho ──────────────────────────────
+*.xlsx
+*.xls
+*.csv
+*.bak
+
+# ─── Python ────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# ─── SO / editor ─────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

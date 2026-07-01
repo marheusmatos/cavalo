@@ -1,0 +1,20 @@
+<div class="ep-modal-overlay" id="ep-overlay" onclick="epClose(event)">
+  <div class="ep-modal">
+    <div class="ep-header">
+      <strong>👁️ Preview do E-mail</strong>
+      <button class="modal-close" onclick="epCloseBtn()">✕</button>
+    </div>
+    <div class="ep-meta" id="ep-meta"></div>
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="epTab('rendered')">📧 E-mail renderizado</div>
+      <div class="ep-tab" onclick="epTab('info')">ℹ️ Detalhes</div>
+    </div>
+    <div id="ep-rendered-wrap"><iframe class="ep-rendered" id="ep-iframe" frameborder="0"></iframe></div>
+    <div id="ep-info-wrap" style="display:none;padding:16px 20px;font-size:13px;color:var(--text2);line-height:1.8;max-height:420px;overflow-y:auto"></div>
+    <div class="ep-nav">
+      <button class="btn btn-ghost btn-sm" onclick="epPrev()">← Anterior</button>
+      <span class="ep-counter" id="ep-counter"></span>
+      <button class="btn btn-ghost btn-sm" onclick="epNext()">Próximo →</button>
+    </div>
+  </div>
+</div>

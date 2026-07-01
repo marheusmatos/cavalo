@@ -1,0 +1,30 @@
+<div class="modal-overlay" id="cfg-modal" onclick="hideConfig(event)">
+<div class="modal">
+  <div class="modal-title">Configurações<button class="modal-close" onclick="closeConfig()">✕</button></div>
+  <div class="modal-section">E-mail Remetente</div>
+  <div class="grid2">
+    <div class="form-row"><label class="label">EMAIL_FROM</label><input class="input" id="c-from" placeholder="seu@shopee.com"></div>
+    <div class="form-row"><label class="label">App Password</label><input class="input" id="c-token" type="password" placeholder="••••••••••••••••"></div>
+  </div>
+  <div class="modal-section">Google</div>
+  <div class="grid2">
+    <div class="form-row"><label class="label">Sheets ID</label><input class="input" id="c-sheet" placeholder="1BhPML..."></div>
+    <div class="form-row"><label class="label">Drive Folder ID</label><input class="input" id="c-drive" placeholder="1p8esv..."></div>
+  </div>
+  <div class="form-row"><label class="label">Prefixo do Assunto</label><input class="input" id="c-subj" placeholder="PRE_FATURA"></div>
+  <div class="modal-section">Destinatários Fixos</div>
+  <div class="form-row"><label class="label">To (sempre) — separados por vírgula</label><textarea class="textarea" id="c-to" rows="2"></textarea></div>
+  <div class="form-row"><label class="label">Always CC</label><textarea class="textarea" id="c-cc" rows="2"></textarea></div>
+  <div class="form-row"><label class="label">Extra CC</label><textarea class="textarea" id="c-ecc" rows="2"></textarea></div>
+  <div class="btn-row" style="margin-top:20px">
+    <button class="btn btn-primary" onclick="saveConfig()">💾 Salvar</button>
+    <button class="btn btn-ghost" onclick="closeConfig()">Cancelar</button>
+  </div>
+  <div id="cfg-res" style="margin-top:10px"></div>
+  <div style="margin-top:20px;padding:14px 16px;border:1.5px solid #fca5a5;border-radius:10px;background:var(--redL)">
+    <div style="font-size:12px;font-weight:600;color:#991b1b;margin-bottom:6px">⚠️ Zona perigosa</div>
+    <div style="font-size:12px;color:#7f1d1d;margin-bottom:12px;line-height:1.5">Remove arquivos pendentes, consolidados e/ou log do sistema. Irreversível.</div>
+    <button class="btn btn-sm" style="background:#b91c1c;color:white" onclick="closeConfig();showReset()">🔄 Resetar sistema</button>
+  </div>
+</div>
+</div>

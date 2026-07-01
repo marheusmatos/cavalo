@@ -1,0 +1,1548 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PMO Prefat — Cobrança de Respostas</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Plus Jakarta Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f7f7f8;--surface:#fff;--border:#e8e8eb;--border2:#d0d0d6;
+    --orange:#ee4d2d;--orange2:#ff6b4a;--orangeL:#fff2f0;
+    --green:#00a651;--greenL:#f0faf5;--red:#e53e3e;--redL:#fff5f5;
+    --yellow:#d97706;--yellowL:#fffbeb;--blue:#2563eb;--blueL:#eff6ff;
+    --text:#111118;--text2:#5a5a72;--text3:#9a9ab0;
+    --radius:12px;--shadow:0 1px 3px rgba(0,0,0,.07),0 4px 12px rgba(0,0,0,.04);
+    --mono:'IBM Plex Mono',monospace;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;min-height:100vh}
+  button,input,select,textarea{font-family:inherit}
+
+  /* ─── Topbar ─── */
+  .topbar{height:56px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:0 24px;position:sticky;top:0;z-index:100}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:-.4px;margin-right:8px}
+  .brand-dot{width:28px;height:28px;border-radius:8px;background:var(--orange);display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;flex-shrink:0}
+  .topbar-right{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+  /* ─── Layout ─── */
+  .main{padding:24px 24px 60px;max-width:1400px;margin:0 auto}
+
+  /* ─── Nav rápida entre operações ─── */
+  .op-nav{display:none;gap:8px;flex-wrap:wrap;background:var(--bg);border-bottom:1px solid var(--border);padding:10px 24px;position:sticky;top:56px;z-index:90}
+  .op-nav.show{display:flex}
+  .op-nav-chip{background:var(--surface);border:1.5px solid var(--border2);border-radius:20px;padding:6px 14px;font-size:12px;font-weight:700;color:var(--text2);cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+  .op-nav-chip:hover{border-color:var(--orange);color:var(--text);transform:translateY(-1px)}
+  .op-nav-chip.has-pend{border-color:#fecaca;color:var(--red);background:var(--redL)}
+  .op-nav-chip b{font-weight:800}
+
+  /* ─── Paginação por operação ─── */
+  .tbl-pag{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:10px 16px;border-top:1px solid var(--border)}
+  .tbl-pag:empty{display:none;padding:0;border-top:none}
+  .tbl-pag-info{font-size:11px;color:var(--text3)}
+  .tbl-pag-btns{display:flex;align-items:center;gap:10px}
+  .tbl-pag-num{font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap}
+
+  /* ─── Config bar ─── */
+  .cfg-bar{display:flex;align-items:flex-end;flex-wrap:wrap;gap:20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;box-shadow:var(--shadow)}
+  .cfg-group{display:flex;flex-direction:column;gap:5px}
+  .cfg-group-row{flex-direction:row;align-items:center;gap:6px}
+  .cfg-label{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.4px}
+  .cfg-group-server{margin-left:auto;opacity:.75}
+  .cfg-bar label{font-size:12px;color:var(--text2);white-space:nowrap}
+  .cfg-input{background:var(--bg);border:1.5px solid var(--border2);border-radius:8px;color:var(--text);padding:7px 11px;font-size:13px;outline:none;transition:border-color .15s}
+  .cfg-input:focus{border-color:var(--orange)}
+
+  /* ─── Quinzena badge ─── */
+  .qz-badge{display:inline-flex;align-items:center;gap:6px;background:var(--blueL);color:var(--blue);border:1.5px solid #bfdbfe;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;font-family:var(--mono);white-space:nowrap}
+  .qz-badge.ativo{background:var(--orange);color:#fff;border-color:var(--orange)}
+
+  /* ─── Global stats ─── */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:10px}
+  @media(max-width:760px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow)}
+  .stat-n{font-size:26px;font-weight:800;line-height:1.1;margin-bottom:3px}
+  .stat-l{font-size:11px;color:var(--text2);font-weight:500;letter-spacing:.3px;text-transform:uppercase}
+  .s-orange .stat-n{color:var(--orange)}
+  .s-red    .stat-n{color:var(--red)}
+  .s-green  .stat-n{color:var(--green)}
+  .s-blue   .stat-n{color:var(--blue)}
+
+  /* ─── Resumo de progresso (% respondido) ─── */
+  .resp-progress-label{font-size:12px;color:var(--text2);margin-bottom:6px}
+  .resp-progress-wrap{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:20px}
+  .resp-progress-bar{height:100%;background:var(--green);border-radius:3px;transition:width .5s ease;width:0}
+
+  /* ─── Op section ─── */
+  .op-section{background:var(--surface);border:1.5px solid var(--border2);border-radius:var(--radius);margin-bottom:14px;box-shadow:var(--shadow);overflow:hidden}
+  .op-header{padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;transition:background .15s}
+  .op-header:hover{background:var(--bg)}
+  .op-badge{background:var(--orangeL);border:1px solid var(--orange);color:var(--orange);font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
+  .op-title{flex:1}
+  .op-chevron{color:var(--text3);font-size:16px;transition:transform .25s;flex-shrink:0;margin-left:4px}
+  .op-section.collapsed .op-chevron{transform:rotate(-90deg)}
+  .op-section.collapsed .tbl-wrap{display:none}
+  .op-section.collapsed .op-header{border-bottom:none}
+  .op-section.urgente{border-color:var(--red)}
+
+  /* ─── Op pills (resumo + filtro compacto no cabeçalho) ─── */
+  .op-pills{display:flex;gap:6px;flex-wrap:wrap}
+  .op-pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:5px 11px;border-radius:14px;border:1.5px solid var(--border2);background:var(--surface);color:var(--text2);cursor:pointer;transition:all .15s;white-space:nowrap}
+  .op-pill:hover{border-color:var(--orange);color:var(--text)}
+  .op-pill.active{color:#fff;border-color:transparent}
+  .op-pill.pill-all.active{background:var(--text2)}
+  .op-pill.pill-aguardando.active{background:var(--red)}
+  .op-pill.pill-respondido.active{background:var(--green)}
+  .op-pill.pill-aguardando:not(.active){color:var(--red);border-color:#fecaca;background:var(--redL)}
+
+  /* ─── Table ─── */
+  .tbl-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse}
+  th{background:var(--bg);padding:9px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text2);border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+  td{padding:10px 12px;font-size:12px;border-bottom:1px solid var(--border);vertical-align:middle;color:var(--text2)}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#fafafa}
+  .td-sub{font-size:11px;color:var(--text3);margin-top:2px}
+
+  /* ─── Status badges ─── */
+  .badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:10px;white-space:nowrap}
+  .b-aguardando{background:var(--yellowL);color:var(--yellow);border:1px solid #fde68a}
+  .b-pendente  {background:var(--redL);color:var(--red);border:1px solid #fecaca}
+  .b-cobrado   {background:var(--blueL);color:var(--blue);border:1px solid #bfdbfe}
+  .b-respondido{background:var(--greenL);color:var(--green);border:1px solid #bbf7d0}
+  .b-noprazo   {background:var(--yellowL);color:var(--yellow);border:1px solid #fde68a}
+
+  /* ─── Days counter ─── */
+  .dias{font-family:var(--mono);font-weight:700;font-size:12px}
+  .dias.urgent{color:var(--red)}
+  .dias.warn  {color:var(--yellow)}
+  .dias.ok    {color:var(--green)}
+
+  /* ─── Buttons ─── */
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:600;transition:all .15s;white-space:nowrap}
+  .btn:disabled{opacity:.45;cursor:not-allowed;transform:none!important}
+  .btn-primary{background:var(--orange);color:#fff}
+  .btn-primary:hover:not(:disabled){background:var(--orange2);transform:translateY(-1px)}
+  .btn-ghost{background:transparent;color:var(--text2);border:1.5px solid var(--border2)}
+  .btn-ghost:hover:not(:disabled){border-color:var(--orange);color:var(--text)}
+  .btn-green{background:var(--green);color:#fff}
+  .btn-green:hover:not(:disabled){filter:brightness(1.1)}
+  .btn-cobrar{background:var(--blueL);color:var(--blue);border:1px solid #bfdbfe;padding:4px 9px;font-size:11px}
+  .btn-cobrar:hover:not(:disabled){background:var(--blue);color:#fff}
+  .btn-sm{padding:6px 12px;font-size:12px}
+  .btn-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+  /* ─── Spinner ─── */
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+
+  /* ─── Alert ─── */
+  .alert{display:flex;align-items:flex-start;gap:10px;padding:11px 15px;border-radius:var(--radius);font-size:13px}
+  .a-ok  {background:var(--greenL);color:var(--green);border:1px solid #bbf7d0}
+  .a-err {background:var(--redL);color:var(--red);border:1px solid #fecaca}
+  .a-warn{background:var(--yellowL);color:var(--yellow);border:1px solid #fde68a}
+  .a-info{background:var(--blueL);color:var(--blue);border:1px solid #bfdbfe}
+
+  /* ─── Empty state ─── */
+  .empty{padding:40px;text-align:center;color:var(--text3)}
+  .empty-icon{font-size:36px;margin-bottom:8px}
+
+  /* ─── Workspace chip ─── */
+  .ws-chip{font-family:var(--mono);font-size:10px;color:var(--text3);background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:2px 7px;letter-spacing:.3px}
+
+  /* ─── Progress bar ─── */
+  .pbar-wrap{width:100%;height:4px;background:var(--border);border-radius:2px;overflow:hidden;display:none;margin-bottom:14px}
+  .pbar-wrap.show{display:block}
+  .pbar{height:100%;background:var(--orange);border-radius:2px;transition:width .4s ease;width:0}
+
+  /* ─── Modal ─── */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:1000;display:none;align-items:center;justify-content:center;padding:24px}
+  .modal-overlay.show{display:flex}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:min(520px,95vw);box-shadow:0 24px 60px rgba(0,0,0,.18);overflow:hidden;display:flex;flex-direction:column;max-height:88vh}
+  .modal-head{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+  .modal-title{font-size:16px;font-weight:700}
+  .modal-close{background:none;border:none;color:var(--text2);cursor:pointer;font-size:18px;padding:4px}
+  .modal-body{padding:20px 24px;overflow-y:auto}
+  .modal-foot{padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;flex-shrink:0}
+  .modal-lg{width:min(980px,95vw)}
+
+  /* ─── Relatório: KPIs, breakdown, insights ─── */
+  .rel-section{margin-bottom:22px}
+  .rel-section:last-child{margin-bottom:0}
+  .rel-section-title{font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .rel-kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+  @media(max-width:760px){.rel-kpis{grid-template-columns:repeat(3,1fr)}}
+  .rel-kpi{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 10px;text-align:center}
+  .rel-kpi-n{font-size:22px;font-weight:800;line-height:1.1}
+  .rel-kpi-l{font-size:10.5px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.3px;margin-top:3px}
+  .rel-op-row{display:grid;grid-template-columns:90px 1fr 70px 60px;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px}
+  .rel-op-row:last-child{border-bottom:none}
+  .rel-op-bar-wrap{height:8px;background:var(--redL);border-radius:4px;overflow:hidden;position:relative}
+  .rel-op-bar{height:100%;background:var(--green);border-radius:4px}
+  .rel-bucket-row{display:grid;grid-template-columns:120px 1fr 50px;gap:10px;align-items:center;padding:5px 0;font-size:12px}
+  .rel-bucket-bar-wrap{height:10px;background:var(--bg);border-radius:5px;overflow:hidden}
+  .rel-bucket-bar{height:100%;border-radius:5px}
+  .rel-list{display:flex;flex-direction:column;gap:6px}
+  .rel-list-item{display:flex;align-items:center;gap:10px;font-size:12px;padding:7px 10px;background:var(--bg);border-radius:8px}
+  .rel-list-item .rel-rank{font-family:var(--mono);font-size:11px;color:var(--text3);width:18px;flex-shrink:0}
+  .rel-list-item .rel-main{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rel-list-item .rel-sub{font-size:10.5px;color:var(--text3)}
+  .rel-empty{font-size:12px;color:var(--text3);padding:10px 0}
+
+  /* ─── Toast ─── */
+  #toast-area{position:fixed;bottom:24px;right:24px;z-index:2000;display:flex;flex-direction:column;gap:8px}
+  .toast{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:var(--shadow);animation:slideIn .25s ease;max-width:380px}
+  @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+  .toast-ok  {background:var(--greenL);color:var(--green);border:1px solid #bbf7d0}
+  .toast-err {background:var(--redL);color:var(--red);border:1px solid #fecaca}
+  .toast-warn{background:var(--yellowL);color:var(--yellow);border:1px solid #fde68a}
+  .toast-info{background:var(--blueL);color:var(--blue);border:1px solid #bfdbfe}
+
+  /* ─── Checkbox ─── */
+  input[type=checkbox]{accent-color:var(--orange);width:15px;height:15px;cursor:pointer;flex-shrink:0}
+
+  /* ─── Test badge ─── */
+  .b-teste{background:#f3f4f6;color:#6b7280;border:1px solid #d1d5db;font-size:10px;padding:2px 6px;border-radius:6px;font-weight:600;letter-spacing:.3px}
+
+  /* ─── Adjust button ─── */
+  .btn-ajuste{background:transparent;color:var(--text3);border:1.5px solid var(--border2);padding:4px 7px;font-size:12px;border-radius:7px;cursor:pointer;transition:all .15s;line-height:1}
+  .btn-ajuste:hover{border-color:var(--orange);color:var(--orange);background:var(--orangeL)}
+
+  /* ─── Op empty ─── */
+  .op-empty{padding:24px;text-align:center;color:var(--text3);font-size:13px}
+
+  @media(max-width:600px){
+    .op-pills{width:100%}
+    .op-pill{flex:1;justify-content:center}
+    .cfg-group-server{margin-left:0}
+    .topbar{padding:0 16px}
+    .main{padding:16px 12px 60px}
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ Topbar ═══ -->
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-dot">📦</div>
+    <span>PMO Prefat</span>
+    <span style="color:var(--text3);font-weight:400;display:none" id="qz-title-sep">·</span>
+    <span id="qz-title-badge" style="color:var(--blue);font-size:12px;font-family:var(--mono);display:none"></span>
+  </div>
+  <div class="topbar-right">
+    <span id="ws-chip" class="ws-chip">—</span>
+    <button class="btn btn-ghost btn-sm" onclick="abrirRelatorio()" title="Ver relatório com insights">📊 Relatório</button>
+    <button class="btn btn-ghost btn-sm" onclick="recarregarTudo()">🔄 Recarregar</button>
+    <button class="btn btn-primary" id="btn-verificar" onclick="verificarTudo()">🔍 Verificar Respostas</button>
+  </div>
+</div>
+
+<!-- ═══ Nav rápida entre operações (fixa, sempre acessível ao rolar) ═══ -->
+<div class="op-nav" id="op-nav"></div>
+
+<!-- ═══ Main ═══ -->
+<div class="main">
+
+  <!-- Config bar -->
+  <div class="cfg-bar">
+    <div class="cfg-group">
+      <span class="cfg-label">Quinzena</span>
+      <select class="cfg-input" id="cfg-quinzena" onchange="onQuinzenaChange()" style="width:auto">
+        <option value="">— todas —</option>
+      </select>
+    </div>
+    <div class="cfg-group">
+      <span class="cfg-label">Cobrar sem resposta após</span>
+      <div class="cfg-group-row">
+        <input class="cfg-input" id="cfg-dias" type="number" min="1" step="1" value="24" style="width:64px">
+        <select class="cfg-input" id="cfg-unidade" style="width:auto">
+          <option value="horas" selected>hora(s)</option>
+          <option value="dias">dia(s)</option>
+        </select>
+      </div>
+    </div>
+    <div class="cfg-group">
+      <span class="cfg-label">Exibição</span>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;height:34px">
+        <input type="checkbox" id="cfg-hide-testes" checked>
+        <span style="font-size:13px">Ocultar e-mails de teste</span>
+      </label>
+    </div>
+    <div class="cfg-group cfg-group-server">
+      <span class="cfg-label">Servidor</span>
+      <input class="cfg-input" id="cfg-server" value="" placeholder="http://127.0.0.1:5050" style="min-width:180px;max-width:240px">
+    </div>
+  </div>
+
+  <!-- Progress bar -->
+  <div class="pbar-wrap" id="pbar-wrap"><div class="pbar" id="pbar"></div></div>
+
+  <!-- Global stats -->
+  <div class="stats">
+    <div class="stat s-red">   <div class="stat-n" id="s-pend">—</div><div class="stat-l">Sem resposta</div></div>
+    <div class="stat s-green"> <div class="stat-n" id="s-resp">—</div><div class="stat-l">Respondidos</div></div>
+    <div class="stat s-orange"><div class="stat-n" id="s-total">—</div><div class="stat-l">Emails enviados</div></div>
+    <div class="stat s-blue">  <div class="stat-n" id="s-cobr">—</div><div class="stat-l">Cobranças hoje</div></div>
+  </div>
+  <div class="resp-progress-label" id="resp-progress-label"></div>
+  <div class="resp-progress-wrap"><div class="resp-progress-bar" id="resp-progress-bar"></div></div>
+
+  <!-- Alert area -->
+  <div id="alert-area" style="margin-bottom:16px"></div>
+
+  <!-- Ops area -->
+  <div id="ops-area">
+    <div class="empty">
+      <div class="empty-icon">📭</div>
+      <div style="font-size:15px;font-weight:600;margin-bottom:6px">Nenhum dado carregado</div>
+      <div style="font-size:13px">Clique em <strong>Verificar Respostas</strong> para checar os e-mails enviados.</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div id="toast-area"></div>
+
+<!-- Modal: Confirmar cobrança -->
+<div class="modal-overlay" id="modal-cobrar">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title">📧 Confirmar cobrança</span>
+      <button class="modal-close" onclick="hideModal('modal-cobrar')">✕</button>
+    </div>
+    <div class="modal-body" id="modal-cobrar-body"></div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="hideModal('modal-cobrar')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirmar-cobrar" onclick="confirmarCobrar()">📤 Enviar cobrança</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Ajuste manual de status -->
+<div class="modal-overlay" id="modal-ajuste">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title">⚙️ Ajuste manual de status</span>
+      <button class="modal-close" onclick="hideModal('modal-ajuste')">✕</button>
+    </div>
+    <div class="modal-body" id="modal-ajuste-body"></div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="hideModal('modal-ajuste')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirmar-ajuste" onclick="confirmarAjuste()">✅ Confirmar ajuste</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Relatório com insights -->
+<div class="modal-overlay" id="modal-relatorio">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <span class="modal-title">📊 Relatório de cobrança</span>
+      <button class="modal-close" onclick="hideModal('modal-relatorio')">✕</button>
+    </div>
+    <div class="modal-body" id="modal-relatorio-body"></div>
+    <div class="modal-foot" style="justify-content:space-between">
+      <span style="font-size:11px;color:var(--text3)" id="relatorio-gerado-em"></span>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-ghost" onclick="hideModal('modal-relatorio')">Fechar</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportarRelatorioHTML()" title="HTML autocontido — pra guardar ou compartilhar este retrato do relatório">📄 Exportar HTML</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportarRelatorioPDF()" title="Abre numa aba nova e chama o diálogo de impressão — escolha 'Salvar como PDF'">🖨️ Exportar PDF</button>
+        <button class="btn btn-primary" onclick="gerarRelatorioCSV()">⬇️ Exportar CSV</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Estado global ───────────────────────────────────────────────────────────
+const WS_ID = (() => {
+  try {
+    let id = localStorage.getItem('pmo_ws_id');
+    if (!id || !/^ws_[a-z0-9]{6}$/.test(id)) {
+      id = 'ws_' + Math.random().toString(36).substr(2, 6);
+      localStorage.setItem('pmo_ws_id', id);
+    }
+    return id;
+  } catch(e) { return 'ws_default'; }
+})();
+
+document.getElementById('ws-chip').textContent = WS_ID;
+
+let _allRows       = [];
+// Resultado real da última checagem por IMAP (quem já respondeu). Antes só
+// vivia em memória — ao recarregar a página, voltava tudo pra "Aguardando"
+// até rodar "Verificar Respostas" de novo, e quem já tinha resposta confirmada
+// era checado de novo sem necessidade. Agora persiste por workspace.
+const _STATUS_KEY = 'pmo_status_map_' + WS_ID;
+let _statusMap     = (() => {
+  try { return JSON.parse(localStorage.getItem(_STATUS_KEY) || '{}'); } catch(e) { return {}; }
+})();
+function _saveStatus() {
+  try { localStorage.setItem(_STATUS_KEY, JSON.stringify(_statusMap)); } catch(e) {}
+}
+// Remove do cache itens que não existem mais no histórico carregado, pra não
+// crescer pra sempre. Só roda se a lista carregada não estiver vazia (uma
+// falha temporária de rede não deve apagar o cache).
+function _prunarStatusMap() {
+  if (!_allRows.length) return;
+  const validas = new Set(_allRows.map(itemKey));
+  let mudou = false;
+  for (const k in _statusMap) {
+    if (!validas.has(k)) { delete _statusMap[k]; mudou = true; }
+  }
+  if (mudou) _saveStatus();
+}
+let _cobrancaMap   = {};
+let _cobrarPending = null;
+let _ajustePending = null;
+// filtro de status por op: { op -> 'all'|'respondido'|'aguardando' }
+let _opFiltro    = {};
+let _opSelection = {};  // op → Set<itemKey> — persiste entre páginas da mesma op
+// página atual por op: { op -> n } — evita tabela infinita quando uma
+// operação tem muitos e-mails (rola a página inteira em vez da seção).
+let _opPage = {};
+const PAGE_SIZE = 12;
+
+const _MANUAL_KEY = 'pmo_manual_status_' + WS_ID;
+let _manualStatusMap = (() => {
+  try { return JSON.parse(localStorage.getItem(_MANUAL_KEY) || '{}'); } catch(e) { return {}; }
+})();
+function _saveManual() {
+  try { localStorage.setItem(_MANUAL_KEY, JSON.stringify(_manualStatusMap)); } catch(e) {}
+}
+
+// ─── Quinzena ────────────────────────────────────────────────────────────────
+function _gerarOpcoesQuinzena() {
+  const sel = document.getElementById('cfg-quinzena');
+  const saved = (() => { try { return localStorage.getItem('pmo_quinzena'); } catch(e) { return ''; } })();
+  const opts = [''];
+  const now  = new Date();
+  // gera últimas 4 quinzenas (2 meses)
+  for (let m = 0; m <= 3; m++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - Math.floor(m / 2), 1);
+    const yr  = d.getFullYear();
+    const mo  = String(d.getMonth() + 1).padStart(2, '0');
+    const q   = m % 2 === 0 ? '01' : '02';
+    opts.push(`${yr}_${mo}_${q}`);
+  }
+  // remove duplicados e ordena decrescente
+  const uniq = [...new Set(opts)].sort().reverse();
+  sel.innerHTML = '<option value="">— todas as quinzenas —</option>';
+  uniq.filter(Boolean).forEach(v => {
+    const [yr, mo, q] = v.split('_');
+    const meses = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const label = `${v}  (${q === '01' ? '1ª' : '2ª'} quinzena ${meses[+mo] || mo}/${yr})`;
+    const opt = document.createElement('option');
+    opt.value = v;
+    opt.textContent = label;
+    if (v === saved) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function quinzenaAtiva() { return document.getElementById('cfg-quinzena').value || ''; }
+
+function onQuinzenaChange() {
+  const qz = quinzenaAtiva();
+  try { localStorage.setItem('pmo_quinzena', qz); } catch(e) {}
+  const badge  = document.getElementById('qz-title-badge');
+  const sep    = document.getElementById('qz-title-sep');
+  if (qz) {
+    badge.textContent = qz;
+    badge.style.display = '';
+    sep.style.display = '';
+  } else {
+    badge.style.display = 'none';
+    sep.style.display   = 'none';
+  }
+  _opFiltro    = {};
+  _opPage      = {};
+  _opSelection = {};
+  renderOps();
+  atualizarStats();
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function srv() { return document.getElementById('cfg-server').value.replace(/\/$/, ''); }
+function limiarDias() {
+  const v = parseFloat(document.getElementById('cfg-dias').value) || 0;
+  return document.getElementById('cfg-unidade').value === 'horas' ? v / 24 : v;
+}
+function hideTests() { return document.getElementById('cfg-hide-testes').checked; }
+function itemKey(r) {
+  if (r.message_id) return 'mid:' + r.message_id;
+  return 'sub:' + (r.subject||'') + '||' + (r.to||'') + '||' + (r.timestamp||'');
+}
+function isTest(r) {
+  const modo = (r.modo||'').toLowerCase();
+  if (modo === 'sim' || modo.includes('teste')) return true;
+  const subj = (r.subject||'').toLowerCase();
+  return subj.startsWith('[teste]') || subj.includes(' [teste]');
+}
+function diasPassados(ts) {
+  if (!ts) return 0;
+  try { return (Date.now() - new Date(ts.replace(' ','T')).getTime()) / (86400000); } catch { return 0; }
+}
+
+// ─── Prazo de resposta (3 dias úteis a contar do envio) ──────────────────────
+function isFimDeSemana(d) { const wd = d.getDay(); return wd === 0 || wd === 6; }
+
+function addDiasUteis(date, n) {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  let add = 0;
+  while (add < n) {
+    d.setDate(d.getDate() + 1);
+    if (!isFimDeSemana(d)) add++;
+  }
+  return d;
+}
+
+// Diferença em dias úteis entre duas datas (só a parte da data, sem hora).
+// Sinal positivo = 'to' no futuro em relação a 'from'; negativo = no passado.
+function diasUteisEntre(from, to) {
+  const d1 = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  const d2 = new Date(to.getFullYear(), to.getMonth(), to.getDate());
+  if (d1.getTime() === d2.getTime()) return 0;
+  const sign = d2 > d1 ? 1 : -1;
+  let cur = new Date(d1), count = 0;
+  while (cur.getTime() !== d2.getTime()) {
+    cur.setDate(cur.getDate() + sign);
+    if (!isFimDeSemana(cur)) count += sign;
+  }
+  return count;
+}
+
+// Texto pronto pra exibir o prazo de resposta (3 dias úteis a partir do envio).
+function prazoInfo(ts) {
+  if (!ts) return { text: '—', cls: 'ok', prazo: null, restam: null };
+  let envio;
+  try { envio = new Date(ts.replace(' ', 'T')); } catch (e) { return { text: '—', cls: 'ok', prazo: null, restam: null }; }
+  if (isNaN(envio.getTime())) return { text: '—', cls: 'ok', prazo: null, restam: null };
+
+  const prazo  = addDiasUteis(envio, 3);
+  const restam = diasUteisEntre(new Date(), prazo);
+
+  let text, cls;
+  if (restam > 0) {
+    text = `falta ${restam} dia${restam > 1 ? 's' : ''}`;
+    cls  = restam === 1 ? 'warn' : 'ok';
+  } else if (restam === 0) {
+    text = 'o prazo vai até hoje';
+    cls  = 'warn';
+  } else {
+    const atraso = Math.abs(restam);
+    text = `a resposta está com ${atraso} dia${atraso > 1 ? 's' : ''} de atraso`;
+    cls  = 'urgent';
+  }
+  return { text, cls, prazo, restam };
+}
+function fmtTs(ts) {
+  if (!ts) return '—';
+  try { return new Date(ts.replace(' ','T')).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); } catch { return ts; }
+}
+function fmtDateOnly(ts) {
+  if (!ts) return '';
+  try { return new Date(ts.replace(' ','T')).toLocaleDateString('pt-BR'); } catch { return ''; }
+}
+function getStatus(key) {
+  return _manualStatusMap[key] || _statusMap[key] || 'aguardando';
+}
+
+// ─── API ─────────────────────────────────────────────────────────────────────
+function apiFetch(path, opts = {}) {
+  opts.headers = Object.assign({'X-Workspace-ID': WS_ID}, opts.headers || {});
+  return fetch(srv() + path, opts);
+}
+
+// ─── Toast / Alert / Modal ───────────────────────────────────────────────────
+function toast(msg, type='info', duration=4000) {
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.textContent = msg;
+  document.getElementById('toast-area').appendChild(el);
+  setTimeout(() => { el.style.opacity='0'; el.style.transform='translateX(100%)'; el.style.transition='all .3s'; setTimeout(()=>el.remove(),300); }, duration);
+}
+function setAlert(msg, type='info') {
+  document.getElementById('alert-area').innerHTML = msg ? `<div class="alert a-${type}">${msg}</div>` : '';
+}
+function hideModal(id) { document.getElementById(id).classList.remove('show'); }
+function showModal(id)  { document.getElementById(id).classList.add('show'); }
+function setPbar(pct) {
+  const wrap=document.getElementById('pbar-wrap'), bar=document.getElementById('pbar');
+  if(pct>=100){wrap.classList.remove('show');bar.style.width='0';}
+  else{wrap.classList.add('show');bar.style.width=pct+'%';}
+}
+// Faz a barra "respirar" entre `de` e `ate` enquanto espera uma resposta
+// lenta do servidor (a checagem IMAP é uma única chamada bloqueante — sem
+// isso a barra fica travada num número fixo a viagem toda e dá a sensação
+// de que travou, principalmente com muitos e-mails pendentes).
+function _iniciarProgressoFake(de, ate, duracaoMs) {
+  const t0 = Date.now();
+  return setInterval(() => {
+    const frac = Math.min(1, (Date.now() - t0) / duracaoMs);
+    setPbar(de + (ate - de) * frac);
+  }, 250);
+}
+
+// ─── Stats ───────────────────────────────────────────────────────────────────
+function atualizarStats() {
+  const qz   = quinzenaAtiva();
+  let rows = _allRows.filter(r => !hideTests() || !isTest(r));
+  if (qz) rows = rows.filter(r => (r.subject||'').includes(qz) || (r.arquivo||'').includes(qz));
+  let pend=0, resp=0;
+  for (const r of rows) {
+    const st = getStatus(itemKey(r));
+    if (st==='respondido') resp++; else pend++;
+  }
+  document.getElementById('s-total').textContent = rows.length;
+  document.getElementById('s-pend').textContent  = pend;
+  document.getElementById('s-resp').textContent  = resp;
+  const pct = rows.length ? Math.round(resp / rows.length * 100) : 0;
+  const lbl = document.getElementById('resp-progress-label');
+  const bar = document.getElementById('resp-progress-bar');
+  if (lbl) lbl.textContent = rows.length ? `${pct}% já respondido (${resp} de ${rows.length})` : 'Nenhum e-mail carregado ainda';
+  if (bar) bar.style.width = pct + '%';
+  // "Cobranças hoje" tem que respeitar o mesmo filtro de quinzena/teste que
+  // os outros números — antes ele contava cobranças de TODAS as quinzenas
+  // sempre, então com uma quinzena específica selecionada o número ficava
+  // maior que o próprio "Emails enviados" (confuso, parecia bug duplo).
+  const rowKeys = new Set(rows.map(itemKey));
+  const today = new Date().toLocaleDateString('pt-BR');
+  let cobHoje = 0;
+  for (const k in _cobrancaMap) {
+    if (!rowKeys.has(k)) continue;
+    if (fmtDateOnly(_cobrancaMap[k].cobrado_em)===today) cobHoje++;
+  }
+  document.getElementById('s-cobr').textContent = cobHoje;
+}
+
+// ─── Carregar logs ───────────────────────────────────────────────────────────
+async function carregarLogs() {
+  setAlert('<span class="spin"></span> Carregando logs...', 'info');
+  try {
+    const r = await apiFetch('/api/cobranca/logs_geral');
+    if (!r.ok) { const e=await r.json().catch(()=>({})); setAlert('❌ Erro: '+(e.erro||'HTTP '+r.status),'err'); return false; }
+    _allRows = _deduplicarErrata(await r.json());
+    _prunarStatusMap();
+    setAlert('');
+    return true;
+  } catch(e) {
+    setAlert(`❌ Não foi possível conectar em <strong>${srv()}</strong>. Verifique se o server.py está rodando.`,'err');
+    return false;
+  }
+}
+
+// Quando existe um email "ERRATA_..." e o original para o mesmo arquivo/op,
+// descarta os originais — só o ERRATA vale para cobrar.
+function _deduplicarErrata(rows) {
+  // Agrupa por (operacao, arquivo) — mesmo arquivo = mesma transp + período
+  const grupos = {};
+  for (const r of rows) {
+    const chave = (r.operacao||'').toLowerCase() + '|||' + (r.arquivo||'').toLowerCase();
+    if (!grupos[chave]) grupos[chave] = [];
+    grupos[chave].push(r);
+  }
+  const excluir = new Set();
+  for (const grp of Object.values(grupos)) {
+    if (grp.length <= 1) continue;
+    const temErrata = grp.some(r => /^ERRATA[\s_]/i.test(r.subject||''));
+    if (!temErrata) continue;
+    // Há ao menos um ERRATA → descarta os não-ERRATA do mesmo grupo
+    for (const r of grp) {
+      if (!/^ERRATA[\s_]/i.test(r.subject||'')) excluir.add(itemKey(r));
+    }
+  }
+  return excluir.size ? rows.filter(r => !excluir.has(itemKey(r))) : rows;
+}
+
+async function carregarHistoricoCobrancas() {
+  try {
+    const r = await apiFetch('/api/cobranca/historico');
+    if (!r.ok) return;
+    const rows = await r.json();
+    if (!Array.isArray(rows)) return;
+    const map = {};
+    for (const row of rows) {
+      const k=row.item_key; if(!k) continue;
+      if (!map[k]||(row.cobrado_em||'')>(map[k].cobrado_em||'')) map[k]=row;
+    }
+    _cobrancaMap = map;
+  } catch(e) {}
+}
+
+async function recarregarTudo() {
+  _opSelection = {};
+  const ok = await carregarLogs();
+  await carregarHistoricoCobrancas();
+  if (ok) { atualizarStats(); renderOps(); }
+}
+
+// ─── Verificar IMAP ───────────────────────────────────────────────────────────
+async function verificarRespostas() {
+  const pendentes = _allRows.filter(r => {
+    const key=itemKey(r);
+    return getStatus(key)!=='respondido' && !isTest(r);
+  });
+  if (!pendentes.length) return;
+  const items = pendentes.map(r=>({key:itemKey(r),from_email:r.from_email||'',message_id:r.message_id||'',subject:r.subject||''}));
+  setPbar(60);
+  try {
+    const resp = await apiFetch('/api/cobranca/verificar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ws_id:WS_ID,items})});
+    const data = await resp.json();
+    const respondidos = new Set(data.respondidos||[]);
+    for (const it of items) {
+      // Sempre grava o resultado REAL do IMAP em _statusMap, mesmo quando
+      // existe ajuste manual — sem isso, um item marcado manualmente como
+      // "Aguardando" nunca era reavaliado, mesmo que a resposta real já
+      // tivesse sido encontrada depois. O ajuste manual continua tendo
+      // prioridade na exibição (getStatus), mas agora dá pra detectar e
+      // avisar quando os dois discordam (ver renderRow).
+      _statusMap[it.key] = respondidos.has(it.key) ? 'respondido' : 'aguardando';
+    }
+    _saveStatus();
+    for (const e of (data.erros||[])) toast(`⚠️ ${e.email}: ${e.erro}`,'warn',8000);
+  } catch(e) { toast('❌ Erro IMAP: '+e.message,'err'); }
+  setPbar(100);
+}
+
+// ─── Filtro por op ────────────────────────────────────────────────────────────
+function setOpFiltro(op, filtro) {
+  _opFiltro[op] = (_opFiltro[op]===filtro) ? 'all' : filtro;
+  _opPage[op]   = 1;
+  delete _opSelection[op];   // filtro novo → limpa seleção desta op
+  renderOpTabela(op);
+  renderOpPills(op);
+}
+
+// ─── Render ──────────────────────────────────────────────────────────────────
+function _rowsParaOp(op) {
+  const qz = quinzenaAtiva();
+  let rows = _allRows.filter(r => r.operacao===op);
+  if (hideTests()) rows = rows.filter(r=>!isTest(r));
+  if (qz) rows = rows.filter(r=>(r.subject||'').includes(qz)||(r.arquivo||'').includes(qz));
+  return rows;
+}
+
+function renderOps() {
+  const area = document.getElementById('ops-area');
+  const qz   = quinzenaAtiva();
+
+  let allRows = _allRows.filter(r=>!hideTests()||!isTest(r));
+  if (qz) allRows = allRows.filter(r=>(r.subject||'').includes(qz)||(r.arquivo||'').includes(qz));
+
+  if (!allRows.length) {
+    area.innerHTML=`<div class="empty"><div class="empty-icon">${_allRows.length?'🔍':'📭'}</div>
+      <div style="font-size:15px;font-weight:600;margin-bottom:6px">${_allRows.length?(qz?`Nenhum email para quinzena ${qz}`:'Nenhum email pendente'):'Nenhum dado'}</div>
+      <div style="font-size:13px">${_allRows.length&&qz?'Tente selecionar outra quinzena ou "— todas —"':'Clique em Verificar Respostas para carregar.'}</div></div>`;
+    return;
+  }
+
+  // Agrupa por op
+  const ops = {};
+  for (const r of allRows) {
+    const op = r.operacao||'—';
+    if (!ops[op]) ops[op]=[];
+    ops[op].push(r);
+  }
+
+  // Ordena por urgência (mais pendentes primeiro) em vez de alfabética — assim
+  // a operação que precisa de atenção aparece no topo, sem precisar abrir
+  // todas as seções pra descobrir qual está mais atrasada.
+  const pendPorOp = {};
+  for (const op of Object.keys(ops)) {
+    pendPorOp[op] = ops[op].filter(r => getStatus(itemKey(r)) !== 'respondido').length;
+  }
+  const opsOrdenadas = Object.keys(ops).sort((a, b) => {
+    if (pendPorOp[b] !== pendPorOp[a]) return pendPorOp[b] - pendPorOp[a];
+    return a.localeCompare(b);
+  });
+
+  // Preserva quais ops estavam recolhidas antes do re-render
+  const prevCollapsed = {};
+  document.querySelectorAll('.op-section.collapsed').forEach(el => {
+    prevCollapsed[el.dataset.op] = true;
+  });
+
+  let html = '';
+  for (const op of opsOrdenadas) {
+    const wasCollapsed = prevCollapsed[op] ? 'collapsed' : '';
+    const urgente = pendPorOp[op] > 0 ? 'urgente' : '';
+    const escapedOp = CSS.escape(op);
+    const safeOp = op.replace(/'/g, "\\'");
+    html += `<div class="op-section ${wasCollapsed} ${urgente}" id="op-sec-${escapedOp}" data-op="${op.replace(/"/g,'&quot;')}">
+      <div class="op-header" onclick="toggleOpSection('${safeOp}')">
+        <span class="op-badge">${op}</span>
+        <span class="op-title"></span>
+        <div class="op-pills" id="op-pills-${escapedOp}" onclick="event.stopPropagation()"></div>
+        <div class="btn-row" id="op-hdr-btns-${escapedOp}" onclick="event.stopPropagation()"></div>
+        <span class="op-chevron">›</span>
+      </div>
+      <div class="tbl-wrap" id="op-tbl-${escapedOp}"></div>
+      <div class="tbl-pag" id="op-pag-${escapedOp}"></div>
+    </div>`;
+  }
+  area.innerHTML = html;
+
+  for (const op of opsOrdenadas) {
+    if (!_opFiltro[op]) _opFiltro[op]='all';
+    renderOpPills(op);
+    renderOpTabela(op);
+    renderOpHeaderBtns(op);
+  }
+
+  // Nav fixa com todas as operações — sem ela, achar uma operação que está
+  // mais abaixo na página (atrás de uma seção longa) exige rolar bastante.
+  // Clicando num chip, vai direto pra seção (e expande se estiver fechada).
+  renderOpNav(opsOrdenadas, pendPorOp);
+}
+
+function renderOpNav(opsOrdenadas, pendPorOp) {
+  const wrap = document.getElementById('op-nav');
+  if (!wrap) return;
+  if (opsOrdenadas.length <= 1) { wrap.innerHTML = ''; wrap.classList.remove('show'); return; }
+  wrap.classList.add('show');
+  wrap.innerHTML = opsOrdenadas.map(op => {
+    const pend = pendPorOp[op] || 0;
+    return `<button type="button" class="op-nav-chip ${pend>0?'has-pend':''}" onclick="irParaOperacao('${op.replace(/'/g,"\\'")}')">${op}${pend>0?` <b>${pend}</b>`:''}</button>`;
+  }).join('');
+}
+
+function irParaOperacao(op) {
+  const sec = document.getElementById('op-sec-' + CSS.escape(op));
+  if (!sec) return;
+  sec.classList.remove('collapsed');
+  // precisa rolar num frame depois de remover "collapsed" — senão a altura
+  // da seção ainda é a recolhida e a conta do scroll sai errada.
+  requestAnimationFrame(() => _scrollParaSecao(sec));
+}
+
+// scrollIntoView sozinho não sabe que o topbar e a nav de operações ficam
+// fixos (sticky) por cima do conteúdo — o resultado era a seção rolar até
+// "embaixo" da nav, escondendo o cabeçalho. Aqui calculamos a altura real
+// do que está fixo no topo e descontamos do destino do scroll.
+function _scrollParaSecao(sec) {
+  const topbar = document.querySelector('.topbar');
+  const nav    = document.getElementById('op-nav');
+  let offset = (topbar ? topbar.offsetHeight : 0);
+  if (nav && nav.classList.contains('show')) offset += nav.offsetHeight;
+  offset += 12; // respiro
+  const y = sec.getBoundingClientRect().top + window.pageYOffset - offset;
+  window.scrollTo({top: Math.max(0, y), behavior: 'smooth'});
+}
+
+// Resumo compacto por operação, embutido no próprio cabeçalho (pills) — antes
+// eram 3 cards grandes repetindo praticamente os mesmos números das stats
+// globais, em toda seção, o que deixava a tela cheia de blocos de números
+// quase iguais. Agora é uma única linha de pills, e continua filtrando a
+// tabela ao clicar.
+function renderOpPills(op) {
+  const rows    = _rowsParaOp(op);
+  const filtro  = _opFiltro[op]||'all';
+  let   resp=0, pend=0;
+  for (const r of rows) {
+    if(getStatus(itemKey(r))==='respondido') resp++; else pend++;
+  }
+  const total = rows.length;
+  const wrap  = document.getElementById('op-pills-'+CSS.escape(op));
+  if (!wrap) return;
+
+  const pills = [
+    {key:'all',        label:`${total} enviado${total===1?'':'s'}`,        cls:'pill-all'},
+    {key:'aguardando',  label:`🔴 ${pend} sem resposta`,                    cls:'pill-aguardando'},
+    {key:'respondido',  label:`✅ ${resp} respondido${resp===1?'':'s'}`,    cls:'pill-respondido'},
+  ];
+  wrap.innerHTML = pills.map(c=>`
+    <button type="button" class="op-pill ${c.cls} ${filtro===c.key?'active':''}"
+         onclick="setOpFiltro('${op.replace(/'/g,"\\'")}','${c.key}')" title="Clique para filtrar">${c.label}</button>`).join('');
+}
+
+function renderOpHeaderBtns(op) {
+  const wrap = document.getElementById('op-hdr-btns-'+CSS.escape(op));
+  if (!wrap) return;
+  const escapedOp = CSS.escape(op);
+  const safeOp     = op.replace(/'/g,"\\'");
+
+  // "Cobrar todos" — antes só contava quem nunca tinha sido cobrado — depois
+  // que cobrava todo mundo uma vez, o botão desaparecia pra sempre (mesmo que
+  // ninguém tivesse respondido ainda) e só dava pra reenviar um por um. Agora
+  // conta todo pendente sem resposta, já cobrado ou não, e o texto se adapta:
+  // primeira cobrança, reenvio, ou os dois misturados.
+  const pendentes = _rowsParaOp(op).filter(r=>!isTest(r)&&getStatus(itemKey(r))!=='respondido');
+  let htmlTodos = '';
+  if (pendentes.length) {
+    const semCobranca = pendentes.filter(r=>!_cobrancaMap[itemKey(r)]).length;
+    let label;
+    if (semCobranca === pendentes.length)      label = `📤 Cobrar todos (${pendentes.length})`;
+    else if (semCobranca === 0)                label = `🔁 Reenviar a todos (${pendentes.length})`;
+    else                                        label = `📤 Cobrar/reenviar todos (${pendentes.length})`;
+    htmlTodos = `<button class="btn btn-ghost btn-sm" onclick="cobrarTodaOp(event,'${safeOp}')">${label}</button>`;
+  }
+
+  // "Cobrar selecionados" — usa as checkboxes da tabela. Fica desabilitado
+  // até marcar alguma linha; atualizarSelecaoOp() mantém o texto/estado em
+  // dia conforme o usuário marca/desmarca.
+  const htmlSel = `<button class="btn btn-ghost btn-sm" id="btn-cobrar-sel-${escapedOp}" disabled
+                      onclick="event.stopPropagation();cobrarSelecionados('${safeOp}')">📤 Cobrar selecionados</button>`;
+
+  wrap.innerHTML = htmlTodos + htmlSel;
+}
+
+// Atualiza o botão "Cobrar selecionados" com base em _opSelection[op]
+// (persiste entre páginas — não depende do DOM da página atual).
+function atualizarSelecaoOp(op) {
+  const btn = document.getElementById('btn-cobrar-sel-'+CSS.escape(op));
+  if (!btn) return;
+  const sel  = _opSelection[op] || new Set();
+  const keys = [...sel];
+  if (!keys.length) {
+    btn.disabled = true;
+    btn.textContent = '📤 Cobrar selecionados';
+    return;
+  }
+  const rows = keys.map(k=>_allRows.find(r=>itemKey(r)===k)).filter(Boolean);
+  const semCobranca = rows.filter(r=>!_cobrancaMap[itemKey(r)]).length;
+  let label;
+  if (semCobranca === rows.length)      label = `📤 Cobrar selecionados (${rows.length})`;
+  else if (semCobranca === 0)           label = `🔁 Reenviar selecionados (${rows.length})`;
+  else                                   label = `📤 Cobrar/reenviar selecionados (${rows.length})`;
+  btn.disabled = false;
+  btn.textContent = label;
+}
+
+async function cobrarSelecionados(op) {
+  const sel  = _opSelection[op] || new Set();
+  const selecionados = [...sel]
+    .map(k => _allRows.find(r=>itemKey(r)===k))
+    .filter(r => r && !isTest(r) && getStatus(itemKey(r))!=='respondido');
+  if (!selecionados.length) { toast('⚠️ Nenhum selecionado pendente','warn'); return; }
+
+  const btn = document.getElementById('btn-cobrar-sel-'+CSS.escape(op));
+  if (btn) btn.disabled = true;
+  let ok=0, fail=0; const avisos=[];
+  for (let i=0;i<selecionados.length;i++) {
+    if (btn) btn.innerHTML = `<span class="spin"></span> ${i+1}/${selecionados.length}...`;
+    try {
+      const d = await enviarCobranca(selecionados[i]);
+      if (d.ok) { ok++; if (d.aviso) avisos.push(d.aviso); } else fail++;
+    } catch { fail++; }
+    await new Promise(res=>setTimeout(res,300));
+  }
+  toast(`✅ ${ok} cobrança(s)${fail?` · ⚠️ ${fail} falha(s)`:''}`, ok?'ok':'warn');
+  if (avisos.length) {
+    toast(`⚠️ ${avisos.length} cobrança(s) com aviso — veja o console`,'warn',8000);
+    console.warn('Avisos de cobrança:', avisos);
+  }
+  delete _opSelection[op];   // limpa seleção após cobrar
+  _reRenderOp(op); atualizarStats();
+}
+
+function renderOpTabela(op) {
+  const filtro = _opFiltro[op]||'all';
+  let rows = _rowsParaOp(op);
+  if (filtro==='respondido') rows=rows.filter(r=>getStatus(itemKey(r))==='respondido');
+  else if (filtro==='aguardando') rows=rows.filter(r=>getStatus(itemKey(r))!=='respondido');
+
+  const wrap = document.getElementById('op-tbl-'+CSS.escape(op));
+  const pagWrap = document.getElementById('op-pag-'+CSS.escape(op));
+  if (!wrap) return;
+
+  if (!rows.length) {
+    wrap.innerHTML=`<div class="op-empty">Nenhum email ${filtro==='respondido'?'respondido':filtro==='aguardando'?'sem resposta':'encontrado'} nesta operação.</div>`;
+    if (pagWrap) pagWrap.innerHTML='';
+    return;
+  }
+
+  // Sem resposta e mais atrasados primeiro, respondidos no final — assim,
+  // mesmo com a tabela paginada, o que precisa de atenção aparece já na
+  // primeira página, sem precisar navegar pra achar.
+  rows = rows.slice().sort((a,b)=>{
+    const ra = getStatus(itemKey(a))==='respondido', rb = getStatus(itemKey(b))==='respondido';
+    if (ra !== rb) return ra ? 1 : -1;
+    return diasPassados(b.timestamp) - diasPassados(a.timestamp);
+  });
+
+  // Paginação — evita uma tabela infinita quando a operação tem muitos
+  // e-mails (forçava rolar a página inteira pra achar a próxima operação).
+  const totalPaginas = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  let pagina = _opPage[op] || 1;
+  if (pagina > totalPaginas) pagina = totalPaginas;
+  if (pagina < 1) pagina = 1;
+  _opPage[op] = pagina;
+
+  const ini = (pagina - 1) * PAGE_SIZE;
+  const rowsPagina = rows.slice(ini, ini + PAGE_SIZE);
+
+  wrap.innerHTML=`<table>
+    <thead><tr>
+      <th><input type="checkbox" title="Selecionar todos (desta página)" onchange="toggleSelectOp('${op.replace(/'/g,"\\'")}',this.checked)"></th>
+      <th>Assunto / Arquivo</th>
+      <th>Destinatário</th>
+      <th>Enviado em</th>
+      <th>Prazo</th>
+      <th>Situação</th>
+      <th>Ação</th>
+    </tr></thead>
+    <tbody>${rowsPagina.map(r=>renderRow(r)).join('')}</tbody>
+  </table>`;
+
+  if (pagWrap) {
+    pagWrap.innerHTML = totalPaginas <= 1 ? '' : `
+      <span class="tbl-pag-info">Mostrando ${ini+1}–${Math.min(ini+PAGE_SIZE, rows.length)} de ${rows.length}</span>
+      <div class="tbl-pag-btns">
+        <button class="btn btn-ghost btn-sm" ${pagina<=1?'disabled':''} onclick="irParaPagina('${op.replace(/'/g,"\\'")}',${pagina-1})">‹ Anterior</button>
+        <span class="tbl-pag-num">Página ${pagina} de ${totalPaginas}</span>
+        <button class="btn btn-ghost btn-sm" ${pagina>=totalPaginas?'disabled':''} onclick="irParaPagina('${op.replace(/'/g,"\\'")}',${pagina+1})">Próxima ›</button>
+      </div>`;
+  }
+}
+
+function irParaPagina(op, pagina) {
+  _opPage[op] = pagina;
+  renderOpTabela(op);
+  const sec = document.getElementById('op-sec-' + CSS.escape(op));
+  if (sec) _scrollParaSecao(sec);
+}
+
+function renderRow(r) {
+  const key      = itemKey(r);
+  const dp       = diasPassados(r.timestamp);
+  const status   = getStatus(key);
+  const cobranca = _cobrancaMap[key];
+  const foraDoPrazo = dp >= limiarDias();
+  const teste    = isTest(r);
+
+  const diasStr  = dp>=1?`${Math.floor(dp)}d ${Math.floor((dp%1)*24)}h`:`${Math.floor(dp*24)}h`;
+  const prazo    = prazoInfo(r.timestamp);
+
+  const ajusteBtn = `<button class="btn-ajuste" onclick="abrirAjuste('${key.replace(/'/g,"\\'")}')" title="Ajustar status manualmente">⚙️</button>`;
+
+  // Conflito: ajuste manual diz "aguardando" mas a última verificação IMAP
+  // achou resposta de verdade — sem isso o item fica travado como
+  // "Aguardando" pra sempre, mesmo que a resposta já tenha sido encontrada.
+  const conflito = _manualStatusMap[key] === 'aguardando' && _statusMap[key] === 'respondido';
+
+  // Situação: antes "Status" e "Cobrança" eram duas colunas separadas que
+  // obrigavam a olhar dois lugares pra entender o mesmo fluxo (foi cobrado?
+  // respondeu?). Agora é uma única célula com o estado completo.
+  let situacaoHtml;
+  if (status==='respondido') {
+    situacaoHtml=`<span class="badge b-respondido">✅ Respondido${_manualStatusMap[key]?' <span style="font-size:9px">✏️</span>':''}</span>`;
+  } else if (conflito) {
+    situacaoHtml=`<span class="badge b-pendente" title="O IMAP encontrou uma resposta, mas o item está fixado manualmente como Aguardando. Clique no ⚙️ pra revisar.">⚠️ Conflito ✏️</span>`;
+  } else if (cobranca) {
+    situacaoHtml=`<span class="badge b-cobrado">📤 Cobrado, sem resposta</span><div class="td-sub">em ${fmtTs(cobranca.cobrado_em)}</div>`;
+  } else if (foraDoPrazo) {
+    situacaoHtml='<span class="badge b-pendente">🔴 Aguardando</span>';
+  } else {
+    situacaoHtml='<span class="badge b-noprazo">🕐 No prazo</span>';
+  }
+
+  let acaoHtml;
+  if (status==='respondido') {
+    acaoHtml=ajusteBtn;
+  } else if (cobranca) {
+    acaoHtml=`<button class="btn btn-cobrar" onclick="pedirCobrar('${key.replace(/'/g,"\\'")}')">🔁 Reenviar</button> ${ajusteBtn}`;
+  } else {
+    acaoHtml=`<button class="btn btn-cobrar" onclick="pedirCobrar('${key.replace(/'/g,"\\'")}')">📤 Cobrar</button> ${ajusteBtn}`;
+  }
+
+  const subjectShort=(r.subject||'—').length>55?(r.subject||'—').slice(0,55)+'…':(r.subject||'—');
+
+  const opEsc = (r.operacao||'').replace(/"/g,'&quot;');
+  const isSel = (_opSelection[r.operacao||'']||new Set()).has(key);
+  return `<tr ${teste?'style="opacity:.55"':''}>
+    <td><input type="checkbox" class="row-ck" data-key="${key}" data-op="${opEsc}"
+        ${status==='respondido'?'disabled':''} ${isSel?'checked':''}
+        onchange="toggleRowSel(this)"></td>
+    <td style="max-width:260px">
+      <div title="${r.subject||''}">${subjectShort} ${teste?'<span class="b-teste">TESTE</span>':''}</div>
+      <div class="td-sub">${r.arquivo||''}</div>
+    </td>
+    <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px" title="${r.to||''}">${r.to||'—'}</td>
+    <td style="white-space:nowrap;font-size:11px;font-family:var(--mono)">${fmtTs(r.timestamp)}</td>
+    <td><span class="dias ${prazo.cls}" style="white-space:nowrap">${prazo.text}</span><div class="td-sub">${diasStr} desde o envio</div></td>
+    <td>${situacaoHtml}</td>
+    <td style="white-space:nowrap">${acaoHtml}</td>
+  </tr>`;
+}
+
+// ─── Toggle collapse op ──────────────────────────────────────────────────────
+function toggleOpSection(op) {
+  const sec = document.getElementById('op-sec-' + CSS.escape(op));
+  if (sec) sec.classList.toggle('collapsed');
+}
+
+// ─── Select todos da op ───────────────────────────────────────────────────────
+// Persiste seleção por op no _opSelection; checkboxes do DOM são restauradas
+// a partir dele ao re-renderizar páginas (seleção acumula entre páginas).
+function toggleRowSel(el) {
+  const key = el.dataset.key;
+  const op  = el.dataset.op;
+  if (!_opSelection[op]) _opSelection[op] = new Set();
+  if (el.checked) _opSelection[op].add(key);
+  else            _opSelection[op].delete(key);
+  atualizarSelecaoOp(op);
+}
+
+function toggleSelectOp(op, checked) {
+  if (!_opSelection[op]) _opSelection[op] = new Set();
+  // Afeta somente as linhas visíveis (página atual) da operação
+  document.querySelectorAll('.row-ck').forEach(ck => {
+    if (ck.dataset.op !== op || ck.disabled) return;
+    ck.checked = checked;
+    if (checked) _opSelection[op].add(ck.dataset.key);
+    else         _opSelection[op].delete(ck.dataset.key);
+  });
+  atualizarSelecaoOp(op);
+}
+
+// ─── Cobrança ─────────────────────────────────────────────────────────────────
+function pedirCobrar(key) {
+  const r=_allRows.find(x=>itemKey(x)===key); if(!r) return;
+  _cobrarPending=r;
+  const qz=quinzenaAtiva();
+  document.getElementById('modal-cobrar-body').innerHTML=`
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="background:var(--bg);border-radius:8px;padding:12px 14px;font-size:13px;border:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.3px">Assunto original</div>
+        <div style="font-weight:600">${r.subject||'—'}</div>
+      </div>
+      ${qz?`<div class="alert a-info" style="font-size:12px">📅 Quinzena ativa: <strong>${qz}</strong> — será referenciada na cobrança.</div>`:''}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div style="background:var(--bg);border-radius:8px;padding:10px 12px;font-size:12px;border:1px solid var(--border)">
+          <div style="color:var(--text3);margin-bottom:3px">Para</div>
+          <div style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.to||'—'}</div>
+        </div>
+        <div style="background:var(--bg);border-radius:8px;padding:10px 12px;font-size:12px;border:1px solid var(--border)">
+          <div style="color:var(--text3);margin-bottom:3px">Remetente</div>
+          <div style="font-weight:500">${r.from_email||'—'}</div>
+        </div>
+        <div style="background:var(--bg);border-radius:8px;padding:10px 12px;font-size:12px;border:1px solid var(--border)">
+          <div style="color:var(--text3);margin-bottom:3px">Enviado em</div>
+          <div style="font-weight:500">${fmtTs(r.timestamp)}</div>
+        </div>
+        <div style="background:var(--bg);border-radius:8px;padding:10px 12px;font-size:12px;border:1px solid var(--border)">
+          <div style="color:var(--text3);margin-bottom:3px">Operação</div>
+          <div style="font-weight:500">${r.operacao||'—'}</div>
+        </div>
+        <div style="background:var(--bg);border-radius:8px;padding:10px 12px;font-size:12px;border:1px solid var(--border);grid-column:1/-1">
+          <div style="color:var(--text3);margin-bottom:3px">Prazo (3 dias úteis)</div>
+          <div class="dias ${prazoInfo(r.timestamp).cls}" style="font-weight:700">${prazoInfo(r.timestamp).text}</div>
+        </div>
+      </div>
+    </div>`;
+  showModal('modal-cobrar');
+}
+
+async function confirmarCobrar() {
+  if(!_cobrarPending) return;
+  const btn=document.getElementById('btn-confirmar-cobrar');
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span> Enviando...';
+  try {
+    const data=await enviarCobranca(_cobrarPending);
+    if(data.ok){
+      toast('✅ Cobrança enviada de '+data.remetente,'ok');
+      if(data.aviso) toast(data.aviso,'warn',8000);
+      hideModal('modal-cobrar'); _reRenderOp(_cobrarPending.operacao); atualizarStats();
+    }
+    else toast('❌ '+(data.erro||'Erro ao enviar'),'err',6000);
+  } catch(e){ toast('❌ Erro: '+e.message,'err'); }
+  finally{ btn.disabled=false; btn.innerHTML='📤 Enviar cobrança'; }
+}
+
+async function enviarCobranca(r) {
+  const key=itemKey(r);
+  const qz=quinzenaAtiva();
+  const resp=await apiFetch('/api/cobranca/enviar',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ws_id:WS_ID,item_key:key,from_email:r.from_email||'',message_id:r.message_id||'',
+      to:r.to,cc:r.cc||'',operacao:r.operacao||'',original_subject:r.subject,timestamp:r.timestamp,quinzena:qz})});
+  const data=await resp.json();
+  if(data.ok) _cobrancaMap[key]={item_key:key,cobrado_em:data.cobrado_em,remetente_cobranca:data.remetente};
+  return data;
+}
+
+async function cobrarTodaOp(event, op) {
+  event.stopPropagation();
+  // Processa todo pendente sem resposta, mesmo quem já tinha sido cobrado
+  // antes (nesse caso é um reenvio — enviarCobranca já trata os dois casos
+  // do mesmo jeito).
+  const pendentes=_allRows.filter(r=>{const k=itemKey(r);const st=getStatus(k);return r.operacao===op&&st!=='respondido'&&!isTest(r);});
+  if(!pendentes.length){toast('Nenhum pendente nesta operação','warn');return;}
+  const btn=event.target; btn.disabled=true;
+  let ok=0,fail=0; const avisos=[];
+  for(let i=0;i<pendentes.length;i++){
+    btn.innerHTML=`<span class="spin"></span> ${i+1}/${pendentes.length}...`;
+    try{ const d=await enviarCobranca(pendentes[i]); if(d.ok){ok++; if(d.aviso) avisos.push(d.aviso);} else fail++; }catch{fail++;}
+    await new Promise(res=>setTimeout(res,300));
+  }
+  toast(`✅ ${ok} cobrança(s)${fail?` · ⚠️ ${fail} falha(s)`:''}`,ok?'ok':'warn');
+  if(avisos.length) toast(`⚠️ ${avisos.length} cobrança(s) com aviso — veja o console`,'warn',8000);
+  if(avisos.length) console.warn('Avisos de cobrança:', avisos);
+  _reRenderOp(op); atualizarStats();
+}
+
+function _reRenderOp(op) {
+  renderOpPills(op);
+  renderOpTabela(op);
+  renderOpHeaderBtns(op);
+}
+
+// ─── Ajuste manual ────────────────────────────────────────────────────────────
+function abrirAjuste(key) {
+  const r=_allRows.find(x=>itemKey(x)===key); if(!r) return;
+  _ajustePending=r;
+  const manual=_manualStatusMap[key];
+  const current=getStatus(key);
+  const conflito = manual==='aguardando' && _statusMap[key]==='respondido';
+  document.getElementById('modal-ajuste-body').innerHTML=`
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="background:var(--bg);border-radius:8px;padding:12px 14px;font-size:13px;border:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:4px;text-transform:uppercase">E-mail</div>
+        <div style="font-weight:600">${r.subject||'—'}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">${r.to||'—'}</div>
+      </div>
+      ${conflito?`<div class="alert a-warn" style="font-size:12px">⚠️ A última verificação por e-mail encontrou uma resposta para esse item, mas ele está fixado manualmente como Aguardando. Considere limpar o ajuste manual abaixo.</div>`:''}
+      ${manual?`<div class="alert a-info" style="font-size:12px">✏️ Status definido manualmente. Pode redefinir abaixo.</div>`:''}
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${['respondido','aguardando'].map(v=>`
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border-radius:8px;border:1.5px solid ${current===v?(v==='respondido'?'var(--green)':'var(--red)'):'var(--border2)'};background:${current===v?(v==='respondido'?'var(--greenL)':'var(--redL)'):'var(--surface)'}">
+          <input type="radio" name="ajuste-status" value="${v}" ${current===v?'checked':''} style="accent-color:${v==='respondido'?'var(--green)':'var(--red)'}">
+          <span>${v==='respondido'?'✅ Respondido':'🔴 Aguardando'}</span>
+        </label>`).join('')}
+        ${manual?`<label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border-radius:8px;border:1.5px solid var(--border2)">
+          <input type="radio" name="ajuste-status" value="limpar" style="accent-color:var(--orange)">
+          <span>🔄 Limpar ajuste manual</span>
+        </label>`:''}
+      </div>
+    </div>`;
+  showModal('modal-ajuste');
+}
+
+function confirmarAjuste() {
+  if(!_ajustePending) return;
+  const r=_ajustePending, key=itemKey(r);
+  const sel=document.querySelector('input[name="ajuste-status"]:checked'); if(!sel) return;
+  if(sel.value==='limpar'){delete _manualStatusMap[key];_saveManual();toast('🔄 Ajuste removido','info');}
+  else{_manualStatusMap[key]=sel.value;_saveManual();toast(sel.value==='respondido'?'✅ Marcado como respondido':'🔴 Marcado como aguardando','ok');}
+  hideModal('modal-ajuste'); _ajustePending=null;
+  _reRenderOp(r.operacao); atualizarStats();
+}
+
+// ─── Relatório ────────────────────────────────────────────────────────────────
+// Antes "Relatório" baixava um CSV direto, sem dar nenhuma visão do que tem
+// ali dentro. Agora abre uma view com KPIs e insights primeiro; o CSV
+// continua disponível como ação secundária dentro dela.
+function _dadosRelatorio() {
+  const qz=quinzenaAtiva();
+  let rows=_allRows.filter(r=>!hideTests()||!isTest(r));
+  if(qz) rows=rows.filter(r=>(r.subject||'').includes(qz)||(r.arquivo||'').includes(qz));
+  return rows;
+}
+
+function abrirRelatorio() {
+  const rows = _dadosRelatorio();
+  if (!rows.length) { toast('⚠️ Nenhum dado para gerar relatório','warn'); return; }
+
+  let resp=0, atrasados=0, cobrados=0, cobradosSemResposta=0, cobHoje=0;
+  const hoje = new Date().toLocaleDateString('pt-BR');
+  const porOp = {};
+  const destPend = {};
+  const buckets = { ok:0, leve:0, medio:0, grave:0 };
+  const piores = [];
+
+  for (const r of rows) {
+    const key = itemKey(r);
+    const st  = getStatus(key);
+    const op  = r.operacao || '—';
+    porOp[op] = porOp[op] || { op, total:0, resp:0, pend:0, atrasados:0 };
+    porOp[op].total++;
+
+    const cobranca = _cobrancaMap[key];
+    if (cobranca) {
+      cobrados++;
+      if (fmtDateOnly(cobranca.cobrado_em) === hoje) cobHoje++;
+      if (st !== 'respondido') cobradosSemResposta++;
+    }
+
+    if (st === 'respondido') { resp++; porOp[op].resp++; continue; }
+    porOp[op].pend++;
+
+    const prazo = prazoInfo(r.timestamp);
+    const emailPrimario = (r.to||'').split(',')[0].trim().toLowerCase() || '—';
+    destPend[emailPrimario] = (destPend[emailPrimario]||0) + 1;
+
+    if (prazo.cls === 'urgent') {
+      const diasAtraso = Math.abs(prazo.restam || 0);
+      atrasados++; porOp[op].atrasados++;
+      piores.push({ op, to: r.to||'—', subject: r.subject||'—', dias: diasAtraso });
+      if (diasAtraso > 7) buckets.grave++;
+      else if (diasAtraso >= 3) buckets.medio++;
+      else buckets.leve++;
+    } else {
+      buckets.ok++;
+    }
+  }
+
+  const pend       = rows.length - resp;
+  const pctResp    = rows.length ? Math.round(resp/rows.length*100) : 0;
+  const pctNoPrazo = pend ? Math.round((pend-atrasados)/pend*100) : 100;
+
+  piores.sort((a,b)=>b.dias-a.dias);
+  const topPiores = piores.slice(0,8);
+  const topDest   = Object.entries(destPend).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const opsArr    = Object.values(porOp).sort((a,b)=> b.atrasados-a.atrasados || b.pend-a.pend);
+
+  const qz = quinzenaAtiva();
+  document.getElementById('relatorio-gerado-em').textContent =
+    `${qz ? 'Quinzena '+qz : 'Todas as quinzenas'} · gerado em ${new Date().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
+
+  const escHtml = v => String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  const kpisHtml = `
+    <div class="rel-kpis">
+      <div class="rel-kpi"><div class="rel-kpi-n" style="color:var(--orange)">${rows.length}</div><div class="rel-kpi-l">Enviados</div></div>
+      <div class="rel-kpi"><div class="rel-kpi-n" style="color:var(--green)">${pctResp}%</div><div class="rel-kpi-l">Respondidos</div></div>
+      <div class="rel-kpi"><div class="rel-kpi-n" style="color:var(--red)">${pend}</div><div class="rel-kpi-l">Sem resposta</div></div>
+      <div class="rel-kpi"><div class="rel-kpi-n" style="color:${atrasados>0?'var(--red)':'var(--green)'}">${pctNoPrazo}%</div><div class="rel-kpi-l">Dentro do prazo</div></div>
+      <div class="rel-kpi"><div class="rel-kpi-n" style="color:var(--blue)">${cobrados}</div><div class="rel-kpi-l">Já cobrados</div></div>
+      <div class="rel-kpi"><div class="rel-kpi-n" style="color:var(--yellow)">${cobradosSemResposta}</div><div class="rel-kpi-l">Cobrados s/ resp.</div></div>
+    </div>`;
+
+  const opsHtml = opsArr.length ? opsArr.map(o=>{
+    const pct = o.total ? Math.round(o.resp/o.total*100) : 0;
+    return `<div class="rel-op-row">
+      <span class="op-badge" style="justify-self:start">${escHtml(o.op)}</span>
+      <span class="rel-op-bar-wrap"><span class="rel-op-bar" style="width:${pct}%"></span></span>
+      <span style="color:var(--text2)">${o.resp}/${o.total} resp.</span>
+      <span style="text-align:right;font-weight:700;color:${o.atrasados>0?'var(--red)':'var(--text3)'}">${o.atrasados>0?'🔴 '+o.atrasados:'—'}</span>
+    </div>`;
+  }).join('') : '<div class="rel-empty">Sem dados.</div>';
+
+  const bucketDefs = [
+    {k:'ok',    label:'Dentro do prazo',      color:'var(--green)'},
+    {k:'leve',  label:'1–2 dias de atraso',   color:'var(--yellow)'},
+    {k:'medio', label:'3–7 dias de atraso',   color:'var(--orange)'},
+    {k:'grave', label:'7+ dias de atraso',    color:'var(--red)'},
+  ];
+  const maxBucket = Math.max(1, ...Object.values(buckets));
+  const bucketsHtml = bucketDefs.map(b=>`
+    <div class="rel-bucket-row">
+      <span style="color:var(--text2)">${b.label}</span>
+      <span class="rel-bucket-bar-wrap"><span class="rel-bucket-bar" style="width:${Math.round(buckets[b.k]/maxBucket*100)}%;background:${b.color}"></span></span>
+      <span style="text-align:right;font-weight:700">${buckets[b.k]}</span>
+    </div>`).join('');
+
+  const piorestHtml = topPiores.length ? topPiores.map((p,i)=>`
+    <div class="rel-list-item">
+      <span class="rel-rank">#${i+1}</span>
+      <span class="op-badge" style="flex-shrink:0">${escHtml(p.op)}</span>
+      <span class="rel-main" title="${escHtml(p.subject)}">${escHtml(p.to)}</span>
+      <span class="dias urgent" style="flex-shrink:0">${p.dias}d atraso</span>
+    </div>`).join('') : '<div class="rel-empty">Nenhum e-mail fora do prazo. 🎉</div>';
+
+  const destHtml = topDest.length ? topDest.map(([email,n],i)=>`
+    <div class="rel-list-item">
+      <span class="rel-rank">#${i+1}</span>
+      <span class="rel-main">${escHtml(email)}</span>
+      <span style="font-weight:700;color:var(--red);flex-shrink:0">${n} pendente${n>1?'s':''}</span>
+    </div>`).join('') : '<div class="rel-empty">Sem pendências — ninguém devendo resposta.</div>';
+
+  // Guarda o corpo do relatório pronto pra reaproveitar nas exportações de
+  // HTML/PDF (evita recalcular tudo de novo e garante que é exatamente o que
+  // está sendo mostrado na tela).
+  _ultimoRelatorioHtml = `
+    <div class="rel-section">
+      <div class="rel-section-title">📈 Visão geral</div>
+      ${kpisHtml}
+    </div>
+    <div class="rel-section">
+      <div class="rel-section-title">🏷️ Por operação <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">— ordenado pelas mais atrasadas</span></div>
+      ${opsHtml}
+    </div>
+    <div class="rel-section">
+      <div class="rel-section-title">⏱️ Distribuição de atraso (sem resposta)</div>
+      ${bucketsHtml}
+    </div>
+    <div class="rel-section" style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+      <div>
+        <div class="rel-section-title">🔥 Mais atrasados</div>
+        <div class="rel-list">${piorestHtml}</div>
+      </div>
+      <div>
+        <div class="rel-section-title">📮 Quem mais deve resposta</div>
+        <div class="rel-list">${destHtml}</div>
+      </div>
+    </div>`;
+  _ultimoRelatorioMeta = document.getElementById('relatorio-gerado-em').textContent;
+
+  document.getElementById('modal-relatorio-body').innerHTML = _ultimoRelatorioHtml;
+
+  showModal('modal-relatorio');
+}
+
+// ─── Exportar relatório como HTML/PDF ──────────────────────────────────────────
+// HTML autocontido (CSS embutido, sem depender do portal rodando) pra
+// guardar/compartilhar um "retrato" do relatório num momento específico —
+// útil pra acompanhamento ao longo do tempo. O PDF reaproveita o mesmo
+// documento e usa o diálogo de impressão nativo do navegador (sem precisar
+// de nenhuma biblioteca externa).
+let _ultimoRelatorioHtml = '';
+let _ultimoRelatorioMeta = '';
+
+function _relatorioDocumentoStandalone() {
+  const estilos = `
+    *{box-sizing:border-box}
+    body{font-family:'Plus Jakarta Sans',Arial,sans-serif;background:#fff;color:#111118;margin:0;padding:28px 32px;font-size:14px}
+    h1{font-size:18px;margin:0 0 2px}
+    .meta{font-size:12px;color:#5a5a72;margin-bottom:22px}
+    .rel-section{margin-bottom:22px;page-break-inside:avoid}
+    .rel-section-title{font-size:12px;font-weight:700;color:#5a5a72;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px}
+    .rel-kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+    .rel-kpi{background:#f7f7f8;border:1px solid #e8e8eb;border-radius:10px;padding:12px 10px;text-align:center}
+    .rel-kpi-n{font-size:20px;font-weight:800;line-height:1.1}
+    .rel-kpi-l{font-size:10px;color:#5a5a72;font-weight:600;text-transform:uppercase;letter-spacing:.3px;margin-top:3px}
+    .rel-op-row{display:grid;grid-template-columns:90px 1fr 70px 60px;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid #e8e8eb;font-size:12px}
+    .rel-op-bar-wrap{height:8px;background:#fff5f5;border-radius:4px;overflow:hidden}
+    .rel-op-bar{height:100%;background:#00a651;border-radius:4px}
+    .rel-bucket-row{display:grid;grid-template-columns:120px 1fr 50px;gap:10px;align-items:center;padding:5px 0;font-size:12px}
+    .rel-bucket-bar-wrap{height:10px;background:#f7f7f8;border-radius:5px;overflow:hidden}
+    .rel-bucket-bar{height:100%;border-radius:5px}
+    .rel-list{display:flex;flex-direction:column;gap:6px}
+    .rel-list-item{display:flex;align-items:center;gap:10px;font-size:12px;padding:7px 10px;background:#f7f7f8;border-radius:8px}
+    .rel-list-item .rel-rank{font-family:'IBM Plex Mono',monospace;font-size:11px;color:#9a9ab0;width:18px;flex-shrink:0}
+    .rel-list-item .rel-main{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .rel-empty{font-size:12px;color:#9a9ab0;padding:10px 0}
+    .op-badge{background:#fff2f0;border:1px solid #ee4d2d;color:#ee4d2d;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;display:inline-block}
+    .dias{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:12px}
+    .urgent{color:#e53e3e}
+    @media print{ body{padding:0 8px} .rel-section{margin-bottom:16px} }
+  `;
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+    <title>Relatório de cobrança — PMO Prefat</title>
+    <style>${estilos}</style></head><body>
+    <h1>📊 Relatório de cobrança — PMO Prefat</h1>
+    <div class="meta">${_ultimoRelatorioMeta}</div>
+    ${_ultimoRelatorioHtml}
+  </body></html>`;
+}
+
+function exportarRelatorioHTML() {
+  if (!_ultimoRelatorioHtml) { toast('⚠️ Abra o relatório antes de exportar','warn'); return; }
+  const blob = new Blob([_relatorioDocumentoStandalone()], {type:'text/html;charset=utf-8;'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const dt   = new Date().toISOString().slice(0,10).replace(/-/g,'');
+  a.href = url; a.download = `relatorio_cobranca_${quinzenaAtiva()||'geral'}_${dt}.html`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('📄 HTML exportado!','ok');
+}
+
+function exportarRelatorioPDF() {
+  if (!_ultimoRelatorioHtml) { toast('⚠️ Abra o relatório antes de exportar','warn'); return; }
+  // Abre o mesmo documento autocontido numa aba nova e chama o diálogo de
+  // impressão do navegador — escolher "Salvar como PDF" ali gera o PDF sem
+  // precisar de nenhuma biblioteca extra.
+  const win = window.open('', '_blank');
+  if (!win) { toast('⚠️ O navegador bloqueou a nova aba — permita pop-ups pra exportar em PDF','warn',6000); return; }
+  win.document.open();
+  win.document.write(_relatorioDocumentoStandalone());
+  win.document.close();
+  win.focus();
+  setTimeout(() => { try { win.print(); } catch(e) {} }, 350);
+}
+
+function gerarRelatorioCSV() {
+  const rows = _dadosRelatorio();
+  if(!rows.length){toast('Nenhum dado para gerar relatório','warn');return;}
+  const qz=quinzenaAtiva();
+
+  const cols=['Operação','Assunto','Destinatário','Remetente','Enviado em','Dias sem resposta','Prazo (3 dias úteis)','Status','Cobrado em','Quinzena'];
+  const lines=[cols.join(';')];
+  for(const r of rows){
+    const key=itemKey(r);
+    const dp=diasPassados(r.timestamp);
+    const status=getStatus(key);
+    const cob=_cobrancaMap[key];
+    const diasStr=dp>=1?`${Math.floor(dp)}d`:(`${Math.floor(dp*24)}h`);
+    const esc=v=>'"'+(String(v||'').replace(/"/g,'""'))+'"';
+    lines.push([
+      esc(r.operacao||''),esc(r.subject||''),esc(r.to||''),esc(r.from_email||''),
+      esc(fmtTs(r.timestamp)),esc(diasStr),esc(prazoInfo(r.timestamp).text),esc(status),
+      esc(cob?fmtTs(cob.cobrado_em):''),esc(qz||'todas')
+    ].join(';'));
+  }
+  const blob=new Blob(['﻿'+lines.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const dt=new Date().toISOString().slice(0,10).replace(/-/g,'');
+  a.href=url; a.download=`cobranca_${qz||'geral'}_${dt}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('📊 CSV exportado!','ok');
+}
+
+// ─── Fluxo principal ──────────────────────────────────────────────────────────
+async function verificarTudo() {
+  const btn=document.getElementById('btn-verificar');
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span> Carregando...';
+  setPbar(5);
+  const ok=await carregarLogs();
+  if(!ok){btn.disabled=false;btn.innerHTML='🔍 Verificar Respostas';setPbar(100);return;}
+  await carregarHistoricoCobrancas();
+
+  const pendQtd = _allRows.filter(r=>{const k=itemKey(r);return getStatus(k)!=='respondido'&&!isTest(r);}).length;
+  btn.innerHTML = pendQtd
+    ? `<span class="spin"></span> Verificando ${pendQtd} e-mail(s) via IMAP...`
+    : '<span class="spin"></span> Verificando IMAP...';
+  setPbar(30);
+
+  // Aviso só aparece se realmente demorar — não incomoda em verificações rápidas.
+  const avisoLento = setTimeout(() => {
+    toast('🔍 Ainda verificando… com muitos e-mails pendentes isso pode levar um pouco.', 'info', 6000);
+  }, 12000);
+  const fakeTimer = _iniciarProgressoFake(30, 92, Math.max(8000, pendQtd * 250));
+
+  await verificarRespostas();
+
+  clearInterval(fakeTimer);
+  clearTimeout(avisoLento);
+  atualizarStats(); renderOps(); setPbar(100);
+  const pend=parseInt(document.getElementById('s-pend').textContent)||0;
+  if(pend>0) toast(`🔴 ${pend} email(s) sem resposta`,'warn',5000);
+  else toast('✅ Todos respondidos!','ok');
+  btn.disabled=false; btn.innerHTML='🔍 Verificar Respostas';
+}
+
+// ─── Eventos ──────────────────────────────────────────────────────────────────
+document.getElementById('cfg-dias').addEventListener('change',()=>{renderOps();atualizarStats();});
+document.getElementById('cfg-unidade').addEventListener('change',()=>{renderOps();atualizarStats();});
+document.getElementById('cfg-hide-testes').addEventListener('change',()=>{_opPage={};renderOps();atualizarStats();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){hideModal('modal-cobrar');hideModal('modal-ajuste');hideModal('modal-relatorio');}});
+
+// ─── Init servidor ────────────────────────────────────────────────────────────
+(function initServerUrl(){
+  const input=document.getElementById('cfg-server');
+  const saved=(()=>{try{return localStorage.getItem('pmo_cobranca_server');}catch(e){return null;}})();
+  if(location.protocol.startsWith('http')&&location.origin&&location.origin!=='null') input.value=location.origin;
+  else if(saved) input.value=saved;
+  else input.value='http://127.0.0.1:5050';
+  input.addEventListener('change',()=>{try{localStorage.setItem('pmo_cobranca_server',input.value.trim());}catch(e){}});
+})();
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+(async function boot(){
+  _gerarOpcoesQuinzena();
+  onQuinzenaChange();
+  const ok=await carregarLogs();
+  await carregarHistoricoCobrancas();
+  if(ok&&_allRows.length>0){
+    atualizarStats(); renderOps();
+    setAlert(`📋 ${_allRows.length} email(s) no histórico. Clique em <strong>Verificar Respostas</strong> para checar via IMAP.`,'info');
+  }
+})();
+</script>
+</body>
+</html>

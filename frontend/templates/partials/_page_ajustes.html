@@ -1,0 +1,119 @@
+<div class="page" id="page-ajustes">
+  <div class="section">
+    <div class="section-title">Ajustes Manuais</div>
+    <!-- Sub-abas -->
+    <div class="sub-tabs">
+      <div class="sub-tab active" onclick="goSub('imposto')">🏷️ Ajuste de Imposto</div>
+      <div class="sub-tab" onclick="goSub('zerado')">📊 Ajuste LM</div>
+      <div class="sub-tab" onclick="goSub('fm')">🚚 Ajuste FM</div>
+      <div class="sub-tab" onclick="goSub('lh')">🛣️ Ajuste LH</div>
+    </div>
+
+    <!-- SUB: IMPOSTO -->
+    <div class="sub-page active" id="sub-imposto">
+      <p style="color:var(--text2);font-size:13px;margin-bottom:16px">
+        Preenche a coluna <strong>Imposto</strong> com base em <strong>Aliquota ICMS/ISS</strong>:<br>
+        <code style="background:var(--bg);padding:2px 6px;border-radius:4px">vazio/0 → vazio &nbsp;|&nbsp; 1–5 → ISS &nbsp;|&nbsp; &gt;5 → ICMS</code>
+      </p>
+      <div class="dz" ondragover="event.preventDefault();this.classList.add('drag')"
+           ondragleave="this.classList.remove('drag')" ondrop="ajDrop(event,'imp')">
+        <input type="file" accept=".xlsx" multiple onchange="ajFiles(this.files,'imp')">
+        <div class="dz-icon">📂</div>
+        <div class="dz-txt">Clique ou arraste os arquivos .xlsx</div>
+        <div class="dz-sub">Retorna o arquivo ajustado para download</div>
+      </div>
+      <div id="aj-imp-lista" style="margin-top:12px"></div>
+      <div id="aj-imp-res"   style="margin-top:12px"></div>
+    </div>
+
+    <!-- SUB: VALOR ZERADO -->
+    <div class="sub-page" id="sub-zerado">
+      <p style="color:var(--text2);font-size:13px;margin-bottom:16px">
+        Localiza linhas com <strong>Valor Final à Receber = 0</strong>, aplica tarifas do arquivo de rotas e recalcula os campos financeiros com rateio.
+      </p>
+      <div class="form-row">
+        <label class="label">1. Arquivo de Rotas (rotas_zeradas.xlsx)</label>
+        <div class="dz" style="padding:20px" ondragover="event.preventDefault();this.classList.add('drag')"
+             ondragleave="this.classList.remove('drag')" ondrop="ajDrop(event,'rotas')">
+          <input type="file" accept=".xlsx" onchange="ajFiles(this.files,'rotas')">
+          <div class="dz-txt">📋 Clique ou arraste o arquivo de rotas</div>
+        </div>
+        <div id="aj-rotas-nome" style="margin-top:8px;font-size:12px;color:var(--text3)"></div>
+      </div>
+      <div class="form-row">
+        <label class="label">2. Pré-faturas LM para ajustar (.xlsx)</label>
+        <div class="dz" ondragover="event.preventDefault();this.classList.add('drag')"
+             ondragleave="this.classList.remove('drag')" ondrop="ajDrop(event,'zer')">
+          <input type="file" accept=".xlsx" multiple onchange="ajFiles(this.files,'zer')">
+          <div class="dz-icon">📂</div>
+          <div class="dz-txt">Clique ou arraste os arquivos .xlsx</div>
+        </div>
+        <div id="aj-zer-lista" style="margin-top:12px"></div>
+      </div>
+      <div id="aj-zer-res" style="margin-top:12px"></div>
+    </div><!-- /sub-zerado -->
+
+    <!-- SUB: AJUSTE FM -->
+    <div class="sub-page" id="sub-fm">
+      <p style="color:var(--text2);font-size:13px;margin-bottom:16px">
+        Localiza linhas com <strong>Valor Final à Receber = 0</strong>, aplica tarifas via <strong>id_rota / Rota</strong> e recalcula os campos financeiros.<br>
+        Funciona com qualquer arquivo FM — não exige colunas Shopee específicas.
+      </p>
+      <div class="form-row">
+        <label class="label">1. Arquivo de Rotas</label>
+        <p style="font-size:12px;color:var(--text2);margin-bottom:8px">
+          Aceita dois formatos de colunas:<br>
+          <code style="background:var(--bg);padding:2px 6px;border-radius:4px">3PL · trip · valor_rate_table · quinzena · operação</code><br>
+          <span style="color:var(--text3)">ou equivalente:</span>
+          <code style="background:var(--bg);padding:2px 6px;border-radius:4px">service_name · associate_order_no · new_price · quinzena · operação</code>
+        </p>
+        <div class="dz" style="padding:20px" ondragover="event.preventDefault();this.classList.add('drag')"
+             ondragleave="this.classList.remove('drag')" ondrop="ajDrop(event,'fm_rotas')">
+          <input type="file" accept=".xlsx" onchange="ajFiles(this.files,'fm_rotas')">
+          <div class="dz-txt">📋 Clique ou arraste o arquivo de rotas</div>
+        </div>
+        <div id="aj-fm-rotas-nome" style="margin-top:8px;font-size:12px;color:var(--text3)"></div>
+      </div>
+      <div class="form-row">
+        <label class="label">2. Pré-faturas FM para ajustar (.xlsx)</label>
+        <div class="dz" ondragover="event.preventDefault();this.classList.add('drag')"
+             ondragleave="this.classList.remove('drag')" ondrop="ajDrop(event,'fm')">
+          <input type="file" accept=".xlsx" multiple onchange="ajFiles(this.files,'fm')">
+          <div class="dz-icon">📂</div>
+          <div class="dz-txt">Clique ou arraste os arquivos .xlsx</div>
+          <div class="dz-sub">Qualquer xlsx com coluna id_rota ou Rota</div>
+        </div>
+        <div id="aj-fm-lista" style="margin-top:12px"></div>
+      </div>
+      <div id="aj-fm-res" style="margin-top:12px"></div>
+    </div><!-- /sub-fm -->
+
+    <!-- SUB: AJUSTE LH -->
+    <div class="sub-page" id="sub-lh">
+      <p style="color:var(--text2);font-size:13px;margin-bottom:16px">
+        Localiza linhas com <strong>Valor Final à Receber = 0</strong>, aplica tarifas do arquivo de rotas e recalcula os campos financeiros — igual ao Ajuste LM, mas o rateio da tarifa usa a coluna <strong>Fator Agrupador (p/ Cobrança por Veiculo)</strong> em vez da contagem de linhas por Rota.
+      </p>
+      <div class="form-row">
+        <label class="label">1. Arquivo de Rotas (rotas_zeradas.xlsx)</label>
+        <div class="dz" style="padding:20px" ondragover="event.preventDefault();this.classList.add('drag')"
+             ondragleave="this.classList.remove('drag')" ondrop="ajDrop(event,'lh_rotas')">
+          <input type="file" accept=".xlsx" onchange="ajFiles(this.files,'lh_rotas')">
+          <div class="dz-txt">📋 Clique ou arraste o arquivo de rotas</div>
+        </div>
+        <div id="aj-lh-rotas-nome" style="margin-top:8px;font-size:12px;color:var(--text3)"></div>
+      </div>
+      <div class="form-row">
+        <label class="label">2. Pré-faturas LH para ajustar (.xlsx)</label>
+        <div class="dz" ondragover="event.preventDefault();this.classList.add('drag')"
+             ondragleave="this.classList.remove('drag')" ondrop="ajDrop(event,'lh')">
+          <input type="file" accept=".xlsx" multiple onchange="ajFiles(this.files,'lh')">
+          <div class="dz-icon">📂</div>
+          <div class="dz-txt">Clique ou arraste os arquivos .xlsx</div>
+          <div class="dz-sub">Requer a coluna "Fator Agrupador (p/ Cobrança por Veiculo)"</div>
+        </div>
+        <div id="aj-lh-lista" style="margin-top:12px"></div>
+      </div>
+      <div id="aj-lh-res" style="margin-top:12px"></div>
+    </div><!-- /sub-lh -->
+  </div>
+</div>

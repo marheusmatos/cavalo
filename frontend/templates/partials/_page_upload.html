@@ -1,0 +1,70 @@
+<div class="page" id="page-upload">
+  <!-- Stepper -->
+  <div class="stepper" id="stepper">
+    <div class="step active" id="step-1">
+      <div class="step-num">1</div>
+      <div class="step-label">Upload</div>
+    </div>
+    <div class="step-arrow">›</div>
+    <div class="step" id="step-2">
+      <div class="step-num">2</div>
+      <div class="step-label">Consolidar</div>
+    </div>
+    <div class="step-arrow">›</div>
+    <div class="step" id="step-3">
+      <div class="step-num">3</div>
+      <div class="step-label">Enviar</div>
+    </div>
+  </div>
+  <div class="stats">
+    <div class="stat orange"><div class="stat-n" id="s-pendentes">—</div><div class="stat-l">Arquivos pendentes</div></div>
+    <div class="stat green"><div class="stat-n" id="s-hoje">—</div><div class="stat-l">Envios hoje</div></div>
+    <div class="stat red"><div class="stat-n" id="s-falhas">—</div><div class="stat-l">Falhas hoje</div></div>
+  </div>
+
+  <!-- Integrações -->
+  <div class="section">
+    <div class="section-title" style="justify-content:space-between">
+      <span>Status das Integrações</span>
+      <button class="btn btn-ghost btn-sm" onclick="checkHealth()">🔄 Verificar</button>
+    </div>
+    <div class="health-grid" id="health-grid">
+      <div class="health-card checking" id="h-drive">
+        <div class="health-icon">☁️</div><div class="health-label">Google Drive</div><div class="health-msg">Clique em Verificar</div>
+      </div>
+      <div class="health-card checking" id="h-sheets">
+        <div class="health-icon">📊</div><div class="health-label">Google Sheets</div><div class="health-msg">Clique em Verificar</div>
+      </div>
+      <div class="health-card checking" id="h-smtp">
+        <div class="health-icon">📧</div><div class="health-label">SMTP / Gmail</div><div class="health-msg">Clique em Verificar</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upload -->
+  <div class="section">
+    <div class="section-title" style="justify-content:space-between">
+      <span>Upload de Pré-Faturas</span>
+      <button class="btn btn-ghost btn-sm" id="btn-limpar" onclick="limparEnviar()" style="color:var(--red);border-color:var(--red);opacity:.7" title="Remove todos os arquivos pendentes das pastas enviar/">🗑️ Limpar fila</button>
+    </div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:12px">
+      Arraste os arquivos — a operação é <strong>detectada automaticamente</strong>. Você pode confirmar ou corrigir antes de salvar.
+    </p>
+    <label class="dz" id="up-dz" for="up-file" ondragover="dzDrag(event,true)" ondragleave="dzDrag(event,false)" ondrop="dzDrop(event)">
+      <input type="file" id="up-file" accept=".xlsx,.xls,.csv" multiple onchange="upFilesAuto(this.files)">
+      <div class="dz-icon">📂</div>
+      <div class="dz-txt">Clique ou arraste os arquivos</div>
+      <div class="dz-sub">.xlsx · .xls · .csv — operação detectada automaticamente</div>
+    </label>
+    <!-- Área de revisão antes de salvar -->
+    <div id="up-review" style="margin-top:14px;display:none">
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--text2)">📋 Revise as operações detectadas antes de salvar:</div>
+      <div class="up-review-scroll"><div id="up-review-list"></div></div>
+      <div style="display:flex;gap:10px;margin-top:14px">
+        <button class="btn btn-primary" onclick="upConfirmar()">✅ Confirmar e Salvar Todos</button>
+        <button class="btn btn-ghost btn-sm" onclick="upCancelar()" style="color:var(--red)">✕ Cancelar</button>
+      </div>
+    </div>
+    <div id="up-res" style="margin-top:14px"></div>
+  </div>
+</div>

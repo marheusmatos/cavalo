@@ -1,0 +1,101 @@
+<div class="page" id="page-enviar">
+  <div class="stepper">
+    <div class="step done"><div class="step-num">✓</div><div class="step-label">Upload</div></div>
+    <div class="step-arrow">›</div>
+    <div class="step done"><div class="step-num">✓</div><div class="step-label">Consolidar</div></div>
+    <div class="step-arrow">›</div>
+    <div class="step active"><div class="step-num">3</div><div class="step-label">Enviar</div></div>
+  </div>
+  <div class="section">
+    <div class="section-title">Selecionar Operações</div>
+    <div class="chips" id="chips-enviar"></div>
+    <div class="chip-actions">
+      <button class="btn btn-ghost btn-sm" onclick="selAll('enviar')">Todas</button>
+      <button class="btn btn-ghost btn-sm" onclick="clrAll('enviar')">Limpar</button>
+    </div>
+  </div>
+
+
+  <!-- MODO TESTE BANNER -->
+  <div id="teste-banner-on" class="teste-banner teste-on">
+    <div class="teste-banner-icon">🧪</div>
+    <div style="flex:1">
+      <div class="teste-banner-title">Modo Teste ativado</div>
+      <div class="teste-banner-sub">Os e-mails serão enviados <strong>apenas para o remetente</strong> com prefixo [TESTE]. Nenhuma transportadora receberá nada.</div>
+    </div>
+    <button class="teste-toggle-btn teste-off-btn" onclick="pedirDesativarTeste()">Desativar modo teste</button>
+  </div>
+  <div id="teste-banner-off" class="teste-banner teste-off" style="display:none">
+    <div class="teste-banner-icon">🔴</div>
+    <div style="flex:1">
+      <div class="teste-banner-title">Modo REAL — e-mails serão enviados de verdade</div>
+      <div class="teste-banner-sub">Os e-mails chegarão nas transportadoras. Confirme o preview antes de disparar.</div>
+    </div>
+    <button class="teste-toggle-btn teste-on-btn" onclick="ativarTeste()">Voltar para modo teste</button>
+  </div>
+  <input type="checkbox" id="t-teste" checked style="display:none" onchange="syncTesteBanner()">
+
+  <div class="section">
+    <div class="section-title">Preview <span class="pill">revise antes de enviar</span></div>
+    <button class="btn btn-secondary" id="btn-prev-email" onclick="doPreviewTudo()">👁️ Analisar e visualizar e-mails</button>
+    <div id="prev-email-res" style="margin-top:12px"></div>
+    <div id="prev-area" style="margin-top:10px"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Disparar</div>
+    <div id="base-nova-badge" style="margin-bottom:12px;font-size:12px;color:var(--text2);
+      background:var(--blueL);border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:6px">
+      <span>📊</span><span id="base-nova-txt">Base_NOVA não carregada ainda — será carregada ao enviar</span>
+    </div>
+    <div id="env-warn-real" class="alert a-err" style="display:none">🔴 <strong>Modo REAL:</strong> os e-mails serão enviados para as transportadoras. Tem certeza?</div>
+    <div id="env-confirm-real" style="display:none;background:var(--redL);border:1.5px solid #fca5a5;border-radius:10px;padding:14px 16px;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:600;color:#991b1b;margin-bottom:10px">⚠️ Modo REAL — confirme antes de enviar</div>
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
+        <input type="checkbox" id="ck-confirm-real" style="width:16px;height:16px;margin-top:2px;accent-color:#b91c1c;flex-shrink:0" onchange="syncConfirmReal()">
+        <span style="font-size:13px;color:#7f1d1d;line-height:1.5">Confirmo que revisei o preview de todos os e-mails e estou ciente que serão enviados de verdade para as transportadoras.</span>
+      </label>
+    </div>
+    <div class="alert a-warn">⚠️ Após o envio, os arquivos são movidos para a pasta <strong>enviado</strong>. Confirme o preview antes de prosseguir.</div>
+    <div class="btn-row">
+      <button class="btn btn-green" id="btn-env" onclick="iniciarEnvio()">📧 Enviar Pré-Faturas</button>
+      <button class="btn btn-ghost btn-sm" id="btn-cancel-env" onclick="cancelarEnvio()" style="display:none;color:var(--red);border-color:var(--red)">⛔ Cancelar</button>
+    </div>
+    <div class="prog-label" id="prog-label-env"></div>
+    <div class="prog-real" id="pb-env-real"><div class="prog-real-bar" id="pbar-env-real" style="width:0%"></div></div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:2px">
+      <button class="btn btn-ghost btn-sm" id="btn-clear-env" style="font-size:11px;padding:3px 10px;display:none" onclick="clearLog('log-env','btn-clear-env')">✕ Limpar log</button>
+    </div>
+    <div class="log-box" id="log-env"></div>
+  </div>
+
+  <!-- PASSO 2 — Selecionar 3PLs (aparece após confirmar envio real) -->
+  <div id="sec-3pl-step" style="display:none" class="section">
+    <div class="section-title" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <span>📦 Passo 2 — Quais 3PLs enviar?
+        <span id="pill-3pl" style="display:none;background:var(--orangeL);color:var(--orange);
+          font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;margin-left:6px"></span>
+      </span>
+      <button class="btn btn-ghost btn-sm" id="btn-load-3pls" onclick="load3PLs()">🔄 Recarregar</button>
+    </div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:12px">
+      Selecione apenas as 3PLs que deseja enviar agora.
+      Se deixar <strong>todas marcadas</strong>, envia para todas.
+      Útil para <strong>reenvio parcial</strong> após um erro.
+    </p>
+    <div id="chips-3pl" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+      <span class="spin"></span>
+    </div>
+    <div id="chip-actions-3pl" style="display:none;margin-bottom:10px" class="chip-actions">
+      <button class="btn btn-ghost btn-sm" onclick="selAll3PL()">✅ Todas</button>
+      <button class="btn btn-ghost btn-sm" onclick="clrAll3PL()">☐ Nenhuma</button>
+    </div>
+    <div id="res-3pl" style="font-size:12px;color:var(--text3);margin-bottom:14px"></div>
+    <div class="btn-row">
+      <button class="btn btn-green" id="btn-env-final" onclick="confirmarEnvioComPLs()">🚀 Confirmar e Enviar</button>
+      <button class="btn btn-ghost btn-sm" onclick="cancelar3PLStep()" style="color:var(--red);border-color:var(--red)">✕ Cancelar</button>
+    </div>
+  </div>
+
+  <div id="env-res"></div>
+</div>

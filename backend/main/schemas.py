@@ -10,7 +10,6 @@ class CarSchema(BaseModel):
     year: int = None
     price: float = None
 
-#car public sempre retorna uma parametro de id 
 class CarPublic(BaseModel):
     id: int
     brand: str

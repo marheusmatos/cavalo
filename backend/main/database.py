@@ -6,7 +6,7 @@ from main.settings import settings
 
 DATABASE_URL = settings.DATABASE_URL
 
-# check_same_thread só é necessário/válido para SQLite.
+
 connect_args = (
     {"check_same_thread": False}  # importante para FastAPI
     if DATABASE_URL.startswith("sqlite")

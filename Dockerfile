@@ -1,7 +1,7 @@
-# Portal PMO Prefat — imagem do backend FastAPI (server-rendered Jinja).
+# Cars API — imagem do backend FastAPI.
 # Build context = RAIZ do repo: a imagem inclui backend/ (código) e frontend/
-# (templates + estáticos), porque o backend renderiza o frontend.
-#   docker build -t pmoserver .
+# (index.html + estáticos), porque o backend serve o frontend.
+#   docker build -t cars-api .
 FROM python:3.12-slim
 
 WORKDIR /app
@@ -10,13 +10,13 @@ WORKDIR /app
 COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 2) Código do backend (vira /app/main, /app/run.py) e o frontend
+# 2) Código do backend (vira /app/main) e o frontend
 COPY backend/ /app/
 COPY frontend/ /app/frontend/
 
-# Onde o app acha templates/estáticos e dados/segredos (montar volume em /app/data).
-ENV PMO_FRONTEND_DIR=/app/frontend \
-    PMO_BASE_DIR=/app/data
+# Configuração via ambiente (ver backend/.env.example).
+ENV DATABASE_URL=sqlite:////app/data/cars.db \
+    FRONTEND_DIR=/app/frontend
 
 # Usuário não-root (segurança) + diretório de dados gravável
 RUN useradd -m appuser \
@@ -26,6 +26,4 @@ USER appuser
 
 EXPOSE 8000
 
-# 1 worker de propósito: estado em memória (jobs/semáforos/pool SMTP) é
-# compartilhado no processo; handlers síncronos rodam no threadpool do Starlette.
 CMD ["uvicorn", "main.app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

@@ -2,11 +2,20 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-DATABASE_URL = "sqlite:///cars.db"
+from main.settings import settings
+
+DATABASE_URL = settings.DATABASE_URL
+
+# check_same_thread só é necessário/válido para SQLite.
+connect_args = (
+    {"check_same_thread": False}  # importante para FastAPI
+    if DATABASE_URL.startswith("sqlite")
+    else {}
+)
 
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False}  # importante para FastAPI
+    connect_args=connect_args,
 )
 
 SessionLocal = sessionmaker(

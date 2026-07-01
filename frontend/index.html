@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cars API — Frontend</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>🚗 Cars API</h1>
+    <p>Frontend simples para a API de carros (FastAPI)</p>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>Cadastrar carro</h2>
+      <form id="car-form">
+        <div class="grid">
+          <label>
+            Marca *
+            <input type="text" name="brand" required placeholder="Toyota" />
+          </label>
+          <label>
+            Modelo *
+            <input type="text" name="model" required placeholder="Corolla" />
+          </label>
+          <label>
+            Cor
+            <input type="text" name="color" placeholder="Prata" />
+          </label>
+          <label>
+            Ano *
+            <input type="number" name="year" required placeholder="2024" />
+          </label>
+          <label>
+            Preço *
+            <input type="number" name="price" step="0.01" required placeholder="120000" />
+          </label>
+        </div>
+        <button type="submit">Adicionar</button>
+        <span id="form-msg" class="msg"></span>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <h2>Carros cadastrados</h2>
+        <button id="reload-btn" class="secondary">Recarregar</button>
+      </div>
+      <table id="cars-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Marca</th>
+            <th>Modelo</th>
+            <th>Cor</th>
+            <th>Ano</th>
+            <th>Preço</th>
+          </tr>
+        </thead>
+        <tbody id="cars-body">
+          <tr><td colspan="6" class="empty">Carregando…</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+rodar: 
+uvicorn main.app:app --reload --app-dir backend
+
+-> Lembrar de editar o arquivo da Jenkinsfile com o nome do seu projeto

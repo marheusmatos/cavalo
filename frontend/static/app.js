@@ -18,5 +18,19 @@ dropZone.addEventListener('drop', (e) => {
 document.getElementById('drawer-btn').addEventListener('click', () => document.body.classList.add('drawer-open'));
 document.getElementById('scrim').addEventListener('click', () => document.body.classList.remove('drawer-open'));
 
+// Switch de tema (dark é o padrão; preferência salva no localStorage)
+const themeIcon = document.getElementById('theme-icon');
+
+function setTheme(light) {
+  document.body.classList.toggle('light', light);
+  themeIcon.textContent = light ? 'dark_mode' : 'light_mode';
+  localStorage.setItem('theme', light ? 'light' : 'dark');
+}
+
+document.getElementById('theme-btn').addEventListener('click', () =>
+  setTheme(!document.body.classList.contains('light')));
+
+setTheme(localStorage.getItem('theme') === 'light');
+
 const profileMenu = document.getElementById('profile-menu');
 document.getElementById('profile-btn').addEventListener('click', () => profileMenu.open = !profileMenu.open);

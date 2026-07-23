@@ -1,13 +1,31 @@
 /* ---------- Cores: altere tudo aqui ---------- */
 :root {
-  --cor-fundo:  #121212;            /* fundo da página */
-  --cor-primaria: #EE4D2D;         /* avatar do perfil */
-  --cor-circulo: 	#291717;          /* círculo animado atrás do ícone */
-  --cor-item-ativo: #ee4d2d38;       /* fundo do item ativo do drawer */
-  --cor-texto: #49454f;            /* texto dos itens do drawer */
-  --cor-texto-ativo: #1e1d22;      /* texto do item ativo */
-  --cor-hover: rgba(0, 0, 0, 0.08);/* hover de botões e itens */
-  --cor-scrim: rgba(0, 0, 0, 0.4); /* fundo escurecido atrás do drawer */
+  --cor-fundo:  #121212;                    /* fundo da página (M2 dark: #121212) */
+  --cor-primaria: #FFAB91;                  /* primária dessaturada p/ dark (M2: tom 200, deep orange) */
+  --cor-circulo: #291717;                   /* círculo animado atrás do ícone */
+  --cor-drawer: #2b2b2b;                    /* drawer: superfície elevada (overlay branco ~12%) */
+  --cor-item-ativo: #ffab9138;              /* fundo do item ativo do drawer */
+  --cor-texto: rgba(255, 255, 255, 0.60);   /* texto dos itens (M2: branco 60% — medium emphasis) */
+  --cor-texto-ativo: var(--cor-primaria);   /* texto do item ativo (contraste 5:1 no escuro) */
+  --cor-texto-alta: rgba(255, 255, 255, 0.87); /* texto/ícones high emphasis (M2: branco 87%) */
+  --cor-hover: rgba(255, 255, 255, 0.08);   /* hover: overlay branco no dark theme */
+  --cor-state-layer: #ffffff;               /* cor base dos overlays de estado do md-menu */
+  --cor-scrim: rgba(0, 0, 0, 0.6);          /* fundo escurecido atrás do drawer */
+}
+
+/* ---------- Tema light (body.light) ---------- */
+body.light {
+  --cor-fundo: #fffbfe;
+  --cor-primaria: #EE4D2D;                  /* no claro a primária saturada volta */
+  --cor-circulo: #fdeae5;                   /* tom claro da primária */
+  --cor-drawer: #f5f0f0;
+  --cor-item-ativo: #ee4d2d38;
+  --cor-texto: rgba(0, 0, 0, 0.60);         /* M2 light: preto 60% */
+  --cor-texto-ativo: #c23617;               /* primária escurecida (contraste 5.5:1 no claro) */
+  --cor-texto-alta: rgba(0, 0, 0, 0.87);    /* M2 light: preto 87% */
+  --cor-hover: rgba(0, 0, 0, 0.08);
+  --cor-state-layer: #000000;
+  --cor-scrim: rgba(0, 0, 0, 0.4);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -38,7 +56,15 @@ body {
   justify-content: center;
 }
 
+.icon-btn { color: var(--cor-texto-alta); }
 .icon-btn:hover { background: var(--cor-hover); }
+
+/* Menu do perfil (md-menu) segue o tema */
+md-menu {
+  --md-menu-container-color: var(--cor-drawer);
+  --md-menu-item-label-text-color: var(--cor-texto-alta);
+  --md-menu-item-hover-state-layer-color: var(--cor-state-layer);
+}
 
 /* ---------- Navigation drawer (modal) ---------- */
 .scrim {
@@ -58,7 +84,7 @@ body {
   bottom: 0;
   width: 300px;
   max-width: 80vw;
-  background: var(--cor-fundo);
+  background: var(--cor-drawer);
   padding: 12px;
   transform: translateX(-100%);
   transition: transform 0.25s ease;
@@ -88,7 +114,13 @@ body.drawer-open .nav-drawer { transform: translateX(0); }
 .nav-item:hover { background: var(--cor-hover); }
 .nav-item.active { background: var(--cor-item-ativo); color: var(--cor-texto-ativo); }
 
-.profile-anchor-wrapper { position: relative;float:right }
+.top-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.profile-anchor-wrapper { position: relative; }
 
 .profile-avatar {
   width: 40px;
@@ -129,7 +161,7 @@ animation-iteration-count: infinite;
 @keyframes circle-in {
   0% { transform: scale(0); opacity: 1; }
   50% { transform: scale(0); opacity: 1; }
-  100%   { transform: scale(5); opacity: 0; }
+  100%   { transform: scale(3); opacity: 0; }
 }
 
 .upload-icon {

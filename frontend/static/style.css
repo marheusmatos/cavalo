@@ -35,8 +35,16 @@ body {
   display: flex;
   flex-direction: column;
   background: var(--cor-fundo);
-}
 
+}
+img{
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+
+}
 .top-bar {
   padding: 12px 24px;
   display: flex;
@@ -137,3 +145,59 @@ body.drawer-open .nav-drawer { transform: translateX(0); }
   display: flex;
   flex-direction: column;
 }
+
+/* Círculo animado atrás do elemento central (usado no upload e no processing) */
+.upload-icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.upload-icon-wrapper > :first-child {
+  position: relative;
+  z-index: 1; /* mantém o conteúdo acima do círculo */
+}
+
+.circle-bg {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--cor-circulo);
+  animation: circle-in 5s ease-out forwards;
+  animation-iteration-count: infinite;
+}
+
+@keyframes circle-in {
+  0%   { transform: scale(0); opacity: 1; }
+  50%  { transform: scale(0); opacity: 1; }
+  100% { transform: scale(3); opacity: 0; }
+}
+  .upload-icon-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .circle-bg {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: var(--cor-circulo);
+    animation: circle-in 5s ease-out forwards;
+    animation-iteration-count: infinite;
+  }
+
+  @keyframes circle-in {
+    0%   { transform: scale(0); opacity: 1; }
+    50%  { transform: scale(0); opacity: 1; }
+    100% { transform: scale(3); opacity: 0; }
+  }
+
+  .upload-icon {
+    position: relative;
+    z-index: 1;
+    font-size: 200px;
+    color: var(--cor-primaria);
+  }

@@ -8,31 +8,7 @@
     cursor: pointer;
   }
 
-  .upload-icon-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .circle-bg {
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    background: var(--cor-circulo);
-    animation: circle-in 5s ease-out forwards;
-    animation-iteration-count: infinite;
-  }
-
-  @keyframes circle-in {
-    0%   { transform: scale(0); opacity: 1; }
-    50%  { transform: scale(0); opacity: 1; }
-    100% { transform: scale(3); opacity: 0; }
-  }
-
   .upload-icon {
-    position: relative;
-    z-index: 1;
     font-size: 200px;
     color: var(--cor-primaria);
   }

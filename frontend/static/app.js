@@ -7,7 +7,8 @@ const initPage = {
   upload() {
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
-    const handleFile = (file) => file && alert(`Arquivo selecionado: ${file.name}`);
+    // Ao receber o documento, troca para a tela de processamento
+    const handleFile = (file) => file && loadPage('processing');
 
     dropZone.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', () => { handleFile(fileInput.files[0]); fileInput.value = ''; });
@@ -22,6 +23,22 @@ const initPage = {
   },
   historico() {},
   configuracoes() {},
+  processing() {
+    // Avança 2% por segundo; ao chegar em 100%, avisa e recarrega
+    const fill = document.getElementById('progress-fill');
+    let progresso = parseFloat(fill.style.width);
+
+    const timer = setInterval(() => {
+      progresso = Math.min(progresso + 2, 100);
+      fill.style.width = `${progresso}%`;
+
+      if (progresso >= 100) {
+        clearInterval(timer);
+        // Deixa a barra terminar de desenhar antes de bloquear com o alert
+        setTimeout(() => { alert('Pronto'); location.reload(); }, 100);
+      }
+    }, 50);
+  },
 };
 
 async function loadPage(page) {

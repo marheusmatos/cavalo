@@ -20,6 +20,9 @@
 <body>
 
   <header class="top-bar">
+    <button id="drawer-btn" class="icon-btn" aria-label="Abrir menu">
+      <span class="material-symbols-outlined">menu</span>
+    </button>
     <span class="profile-anchor-wrapper">
       <button id="profile-btn" class="profile-avatar" aria-label="Menu do perfil"></button>
       <md-menu id="profile-menu" anchor="profile-btn">
@@ -29,6 +32,25 @@
       </md-menu>
     </span>
   </header>
+
+  <!-- Navigation drawer (modal, spec M3) -->
+  <div id="scrim" class="scrim"></div>
+  <aside id="drawer" class="nav-drawer">
+    <nav>
+      <button class="nav-item active">
+        <span class="material-symbols-outlined">upload_file</span>
+        <span>Upload</span>
+      </button>
+      <button class="nav-item">
+        <span class="material-symbols-outlined">history</span>
+        <span>Histórico</span>
+      </button>
+      <button class="nav-item">
+        <span class="material-symbols-outlined">settings</span>
+        <span>Configurações</span>
+      </button>
+    </nav>
+  </aside>
 
   <!-- Página inteira é a drop zone -->
   <main id="drop-zone" class="drop-zone">

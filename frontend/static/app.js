@@ -14,5 +14,9 @@ dropZone.addEventListener('drop', (e) => {
   handleFile(e.dataTransfer.files[0]);
 });
 
+// Navigation drawer
+document.getElementById('drawer-btn').addEventListener('click', () => document.body.classList.add('drawer-open'));
+document.getElementById('scrim').addEventListener('click', () => document.body.classList.remove('drawer-open'));
+
 const profileMenu = document.getElementById('profile-menu');
 document.getElementById('profile-btn').addEventListener('click', () => profileMenu.open = !profileMenu.open);

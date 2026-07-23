@@ -41,31 +41,23 @@
   <div id="scrim" class="scrim"></div>
   <aside id="drawer" class="nav-drawer">
     <nav>
-      <button class="nav-item active">
+      <button class="nav-item active" data-page="upload">
         <span class="material-symbols-outlined">upload_file</span>
         <span>Upload</span>
       </button>
-      <button class="nav-item">
+      <button class="nav-item" data-page="historico">
         <span class="material-symbols-outlined">history</span>
         <span>Histórico</span>
       </button>
-      <button class="nav-item">
+      <button class="nav-item" data-page="configuracoes">
         <span class="material-symbols-outlined">settings</span>
         <span>Configurações</span>
       </button>
     </nav>
   </aside>
 
-  <!-- Página inteira é a drop zone -->
-  <main id="drop-zone" class="drop-zone">
-    
-    <div class="upload-icon-wrapper">
-      <span class="material-symbols-outlined upload-icon">upload_file</span>
-      <span class="circle-bg"></span>
-    </div>
-    
-    <input type="file" id="file-input" hidden />
-  </main>
+  <!-- Conteúdo da seção ativa é injetado aqui (pages/*.html) -->
+  <main id="content" class="content"></main>
 
   <script src="static/app.js" defer></script>
 </body>

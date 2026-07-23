@@ -1,10 +1,22 @@
+/* ---------- Cores: altere tudo aqui ---------- */
+:root {
+  --cor-fundo:  #121212;            /* fundo da página */
+  --cor-primaria: #EE4D2D;         /* avatar do perfil */
+  --cor-circulo: 	#291717;          /* círculo animado atrás do ícone */
+  --cor-item-ativo: #ee4d2d38;       /* fundo do item ativo do drawer */
+  --cor-texto: #49454f;            /* texto dos itens do drawer */
+  --cor-texto-ativo: #1e1d22;      /* texto do item ativo */
+  --cor-hover: rgba(0, 0, 0, 0.08);/* hover de botões e itens */
+  --cor-scrim: rgba(0, 0, 0, 0.4); /* fundo escurecido atrás do drawer */
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #fffffd;
+  background: var(--cor-fundo);
 }
 
 .top-bar {
@@ -26,13 +38,13 @@ body {
   justify-content: center;
 }
 
-.icon-btn:hover { background: rgba(0, 0, 0, 0.08); }
+.icon-btn:hover { background: var(--cor-hover); }
 
 /* ---------- Navigation drawer (modal) ---------- */
 .scrim {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--cor-scrim);
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.25s, visibility 0.25s;
@@ -46,8 +58,7 @@ body {
   bottom: 0;
   width: 300px;
   max-width: 80vw;
-  background: #f7f2fa;
-  border-radius: 0 16px 16px 0;
+  background: var(--cor-fundo);
   padding: 12px;
   transform: translateX(-100%);
   transition: transform 0.25s ease;
@@ -65,16 +76,17 @@ body.drawer-open .nav-drawer { transform: translateX(0); }
   height: 56px;
   padding: 0 16px;
   border: none;
+  margin-bottom: 6px;
   border-radius: 28px;
   background: none;
   font-size: 14px;
   font-weight: 500;
-  color: #49454f;
+  color: var(--cor-texto);
   cursor: pointer;
 }
 
-.nav-item:hover { background: rgba(0, 0, 0, 0.08); }
-.nav-item.active { background: #e8def8; color: #1d192b; }
+.nav-item:hover { background: var(--cor-hover); }
+.nav-item.active { background: var(--cor-item-ativo); color: var(--cor-texto-ativo); }
 
 .profile-anchor-wrapper { position: relative;float:right }
 
@@ -84,7 +96,7 @@ body.drawer-open .nav-drawer { transform: translateX(0); }
   border-radius: 50%;
   border: none;
   cursor: pointer;
-  background: #6750a4;
+  background: var(--cor-primaria);
 }
 
 /* Drop zone = página inteira */
@@ -108,8 +120,8 @@ body.drawer-open .nav-drawer { transform: translateX(0); }
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: #113366;
-  animation: circle-in 3s ease-out forwards;
+  background: var(--cor-circulo);
+  animation: circle-in 5s ease-out forwards;
 animation-iteration-count: infinite;
 
 }
@@ -117,12 +129,12 @@ animation-iteration-count: infinite;
 @keyframes circle-in {
   0% { transform: scale(0); opacity: 1; }
   50% { transform: scale(0); opacity: 1; }
-  100%   { transform: scale(3); opacity: 0; }
+  100%   { transform: scale(5); opacity: 0; }
 }
 
 .upload-icon {
   position: relative;
   z-index: 1;
   font-size: 200px;
-  color: #EE4D2D;
+  color: var(--cor-primaria);
 }

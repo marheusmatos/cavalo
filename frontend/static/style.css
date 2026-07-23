@@ -2,7 +2,7 @@
 :root {
   --cor-fundo:  #121212;                    /* fundo da página (M2 dark: #121212) */
   --cor-primaria: #FFAB91;                  /* primária dessaturada p/ dark (M2: tom 200, deep orange) */
-  --cor-circulo: #291717;                   /* círculo animado atrás do ícone */
+  --cor-circulo: #444444;                   /* círculo animado atrás do ícone */
   --cor-drawer: #2b2b2b;                    /* drawer: superfície elevada (overlay branco ~12%) */
   --cor-item-ativo: #ffab9138;              /* fundo do item ativo do drawer */
   --cor-texto: rgba(255, 255, 255, 0.60);   /* texto dos itens (M2: branco 60% — medium emphasis) */
@@ -18,7 +18,7 @@ body.light {
   --cor-fundo: #fffbfe;
   --cor-primaria: #EE4D2D;                  /* no claro a primária saturada volta */
   --cor-circulo: #fdeae5;                   /* tom claro da primária */
-  --cor-drawer: #f5f0f0;
+  --cor-drawer: #f3f3f3;
   --cor-item-ativo: #ee4d2d38;
   --cor-texto: rgba(0, 0, 0, 0.60);         /* M2 light: preto 60% */
   --cor-texto-ativo: #c23617;               /* primária escurecida (contraste 5.5:1 no claro) */

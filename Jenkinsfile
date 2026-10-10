@@ -19,26 +19,24 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                     {
-                    sh '''
-                        set -e
+                sh '''
+                    set -e
 
-                        # Garante que o diretório exista
-                        mkdir -p "$DATA_DIR"
+                    # Garante que o diretório exista
+                    mkdir -p "$DATA_DIR"
 
-                        # Remove o container anterior, se existir
-                        docker stop "$CONTAINER_NAME" || true
-                        docker rm "$CONTAINER_NAME" || true
+                    # Remove o container anterior, se existir
+                    docker stop "$CONTAINER_NAME" || true
+                    docker rm "$CONTAINER_NAME" || true
 
-                        # Sobe o novo container
-                        docker run -d \
-                            -p 127.0.0.1:$HOST_PORT:$CONTAINER_PORT \
-                            -v "$DATA_DIR":/app/data \
-                            --name "$CONTAINER_NAME" \
-                            --restart unless-stopped \
-                            "$IMAGE_NAME"
-                    '''
-                }
+                    # Sobe o novo container
+                    docker run -d \
+                        -p 127.0.0.1:$HOST_PORT:$CONTAINER_PORT \
+                        -v "$DATA_DIR":/app/data \
+                        --name "$CONTAINER_NAME" \
+                        --restart unless-stopped \
+                        "$IMAGE_NAME"
+                '''
             }
         }
     }

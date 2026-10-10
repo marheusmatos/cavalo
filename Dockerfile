@@ -4,13 +4,12 @@
 #   docker build -t cavalo .
 # Sem Chrome na imagem: conecte a conta Google enviando pelo front o
 # secrets.json gerado num login feito em máquina com Chrome.
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 WORKDIR /app
 
-# 1) Dependências primeiro (camada cacheável)
 COPY backend/requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -r requirements.txt
 
 # 2) Código do backend (vira /app/main) e o frontend. O .dockerignore deixa
 #    de fora backend/vendor (secrets.json!) e os .db locais.

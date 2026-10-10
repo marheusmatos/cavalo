@@ -19,17 +19,12 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                withCredentials([
-                    file(credentialsId: 'cavalo-credentials', variable: 'CREDENCIAIS')
-                ]) {
+                     {
                     sh '''
                         set -e
 
                         # Garante que o diretório exista
                         mkdir -p "$DATA_DIR"
-
-                        # Atualiza a credencial
-                        install -m 0640 "$CREDENCIAIS" "$DATA_DIR/credenciais.json"
 
                         # Remove o container anterior, se existir
                         docker stop "$CONTAINER_NAME" || true
@@ -39,7 +34,6 @@ pipeline {
                         docker run -d \
                             -p 127.0.0.1:$HOST_PORT:$CONTAINER_PORT \
                             -v "$DATA_DIR":/app/data \
-                            -e PMO_BASE_PATH="$BASE_PATH" \
                             --name "$CONTAINER_NAME" \
                             --restart unless-stopped \
                             "$IMAGE_NAME"

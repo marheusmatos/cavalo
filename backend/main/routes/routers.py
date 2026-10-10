@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from main import tracking
 from main.database import get_session
-from main.models import Horse, Meal, Position
+from main.models import Horse, Meal, Position, SensorBlock
 from main.schemas import (
     HorseList,
     HorsePublic,
@@ -51,6 +51,20 @@ def _meals(session, horse_id):
     return session.scalars(q.order_by(Meal.weekday, Meal.shift)).all()
 
 
+def _sensor_free(session, sensor_id, horse_id=None):
+    """Um sensor manda os dados de um cavalo só."""
+    if sensor_id is None:
+        return
+    q = select(Horse.name).where(Horse.sensor_id == sensor_id)
+    if horse_id is not None:
+        q = q.where(Horse.id != horse_id)
+    other = session.scalars(q).first()
+    if other:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, f'Sensor já vinculado a {other}'
+        )
+
+
 @horse_router.get('/', response_model=HorseList)
 def list_horses(session: Session = Depends(get_session)):
     return {'horses': session.scalars(select(Horse).order_by(Horse.id)).all()}
@@ -67,6 +81,7 @@ def create_horse(
     session: Session = Depends(get_session),
 ):
     data = horse.model_dump()
+    _sensor_free(session, data['sensor_id'])
     src = _horse(session, clone_from) if clone_from is not None else None
     if src:
         data.update(
@@ -95,7 +110,9 @@ def update_horse(
     horse_id: int, data: HorseUpdate, session: Session = Depends(get_session)
 ):
     horse = _horse(session, horse_id)
-    for field, value in data.model_dump(exclude_unset=True).items():
+    changes = data.model_dump(exclude_unset=True)
+    _sensor_free(session, changes.get('sensor_id'), horse_id)
+    for field, value in changes.items():
         setattr(horse, field, value)
     session.commit()
     session.refresh(horse)
@@ -107,6 +124,9 @@ def delete_horse(horse_id: int, session: Session = Depends(get_session)):
     horse = _horse(session, horse_id)
     session.execute(delete(Position).where(Position.horse_id == horse_id))
     session.execute(delete(Meal).where(Meal.horse_id == horse_id))
+    session.execute(
+        delete(SensorBlock).where(SensorBlock.horse_id == horse_id)
+    )
     session.delete(horse)
     session.commit()
     tracking.last_poll.pop(horse_id, None)

@@ -60,6 +60,13 @@ class Settings(BaseSettings):
     # tag real). Desligado: o app começa pelo login no Google.
     DEMO_SEED: bool = False
 
+    # --- Sensor no cavalo (ESP32) ------------------------------------------
+    # Chave que o ESP32 manda em X-Sensor-Key (a mesma do config.txt no
+    # cartão SD). TROQUE em produção.
+    SENSOR_KEY: str = 'change-me-sensor-key'
+    # Um contato normal (10 min de acelerômetro a 50 Hz) tem ~180 kB.
+    SENSOR_MAX_UPLOAD_BYTES: int = 512_000
+
     @field_validator('DATABASE_URL')
     @classmethod
     def _resolve_sqlite_path(cls, value: str) -> str:

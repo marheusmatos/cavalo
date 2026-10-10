@@ -1,8 +1,11 @@
 from sqlalchemy import (
+    BigInteger,
     Column,
     Float,
     ForeignKey,
+    Index,
     Integer,
+    LargeBinary,
     String,
     UniqueConstraint,
 )
@@ -19,6 +22,8 @@ class Horse(Base):
     weight_kg = Column(Float, nullable=True)
     # canonic id do rastreador no Find Hub; 'demo' = tag simulada.
     tag_id = Column(String(200), nullable=True)
+    # MAC do ESP32 (12 hex) que manda biometria/atividade deste cavalo.
+    sensor_id = Column(String(12), nullable=True, unique=True, index=True)
     # Geofence circular (opcional).
     fence_lat = Column(Float, nullable=True)
     fence_lon = Column(Float, nullable=True)
@@ -41,6 +46,40 @@ class Position(Base):
     lat = Column(Float, nullable=False)
     lon = Column(Float, nullable=False)
     accuracy = Column(Float, nullable=False)  # metros
+
+
+class SensorBlock(Base):
+    """Um bloco (~1 min) de leituras de um sinal do sensor do cavalo.
+
+    Os gráficos leem só o resumo (v_min/v_max/v_avg); `data` guarda todas as
+    leituras do bloco, para o zoom e para treinar o classificador.
+    """
+
+    __tablename__ = 'sensor_blocks'
+    __table_args__ = (
+        # Identidade do bloco no ESP32: reenviar o mesmo trecho não duplica.
+        # O índice também acha o último bloco de um boot (acerto do relógio).
+        UniqueConstraint('horse_id', 'boot', 'uptime_ms', 'kind'),
+        Index('ix_sensor_blocks_series', 'horse_id', 'kind', 'ts_ms'),
+    )
+
+    id = Column(Integer, primary_key=True)
+    horse_id = Column(Integer, ForeignKey('horses.id'), nullable=False)
+    # A(celerômetro), H (intervalo entre batimentos), T(emperatura), E(vento)
+    kind = Column(String(1), nullable=False)
+    boot = Column(BigInteger, nullable=False)  # id aleatório do boot do ESP32
+    uptime_ms = Column(BigInteger, nullable=False)  # fim do bloco, do boot
+    ts_ms = Column(BigInteger, nullable=False)  # início do bloco, epoch (ms)
+    dur_ms = Column(Integer, nullable=False)
+    n = Column(Integer, nullable=False)  # leituras no bloco
+    ch = Column(Integer, nullable=False)  # valores por leitura (acel.: 3)
+    scale = Column(Float, nullable=False)  # valor real = bruto * scale
+    # Resumo na unidade do gráfico: intensidade do movimento (g), bpm ou °C.
+    v_min = Column(Float, nullable=True)
+    v_max = Column(Float, nullable=True)
+    v_avg = Column(Float, nullable=True)
+    # Por último: blob grande vai para páginas à parte e o resumo lê rápido.
+    data = Column(LargeBinary, nullable=False)  # zlib das leituras brutas
 
 
 class Meal(Base):

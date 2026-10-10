@@ -1,6 +1,15 @@
+import re
 from typing import Annotated, Literal, Optional
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+
+def norm_sensor_id(value: str) -> str:
+    """MAC do ESP32 em 12 hex minúsculos ('F4:2D:…' -> 'f42d…')."""
+    mac = re.sub(r'[:\-\s]', '', value).lower()
+    if not re.fullmatch(r'[0-9a-f]{12}', mac):
+        raise ValueError('Sensor inválido: informe o MAC do ESP32 (12 hex)')
+    return mac
 
 
 class HorseSchema(BaseModel):
@@ -8,9 +17,15 @@ class HorseSchema(BaseModel):
     breed: Optional[str] = Field(default=None, max_length=100)
     weight_kg: Optional[float] = Field(default=None, gt=0, le=2000)
     tag_id: Optional[str] = Field(default=None, max_length=200)
+    sensor_id: Optional[str] = None
     fence_lat: Optional[float] = Field(default=None, ge=-90, le=90)
     fence_lon: Optional[float] = Field(default=None, ge=-180, le=180)
     fence_radius_m: Optional[float] = Field(default=None, gt=0)
+
+    @field_validator('sensor_id')
+    @classmethod
+    def _mac(cls, value):
+        return value if value is None else norm_sensor_id(value)
 
 
 class HorseUpdate(HorseSchema):

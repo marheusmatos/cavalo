@@ -1,4 +1,5 @@
-Cavalo: localização do cavalo por tag BLE (rede Google Find Hub)
+Cavalo: localização do cavalo por tag BLE (rede Google Find Hub) e dados do
+sensor (ESP32) preso ao cavalo
 
 Rodar (Windows, na raiz do repo):
   python -m venv .venv
@@ -11,22 +12,110 @@ Rodar (Windows, na raiz do repo):
 
   Sem --reload: o app baixa a lib (.py) para backend/vendor e o reload
   reiniciaria o servidor no meio do login.
+  Com o sensor na rede: acrescente --host 0.0.0.0 e libere a porta 8000 no
+  firewall; sem isso só o próprio computador alcança o servidor.
 
 Testes:
   cd backend
   ..\.venv\Scripts\pytest -v
+  (test_horse.py: rastreamento e nutrição; test_sensor.py: sensor)
   E2E do front (servidor rodando, conta Google conectada, 1 cavalo com tag):
   .venv\Scripts\python frontend\e2e.py <pasta_prints> mobile|desktop
 
 Telas (visual: E:\documents\Plataforma de monitoramento equino\html):
   Login, Plantel (+ cadastro), Cavalo, Localização (trajeto real + cerca),
-  Nutrição (plano semanal), Biometria e Atividade (aguardam sensor),
-  Alertas (sino) e Conta Google (ícone na app bar do Plantel).
+  Nutrição (plano semanal), Alertas (sino) e Conta Google (ícone na app bar
+  do Plantel). Biometria e Atividade ainda não mostram dados: o servidor já
+  recebe e guarda o que o sensor manda, falta a leitura para as telas.
 
 Sem conta conectada o app abre em "Conta Google": Conectar conta Google
 (abre o Chrome na máquina do servidor) > "Usar como cavalo" no rastreador.
 A SeekTag precisa aparecer no app Encontre Meu Dispositivo.
 Testar sem tag real: DEMO_SEED=true no backend/.env com o banco vazio cria
 o "Cavalo Teste" com tag simulada.
+
+API (lista completa e teste pelo navegador em http://localhost:8000/docs):
+  Tudo em /api/v1 exige o cabeçalho "Authorization: Bearer <token>". O token
+  dura 1 h e vem de
+    POST /auth/token        (form: username=admin&password=admin)
+  A exceção é /api/v1/device/upload, que usa a chave do sensor (ver abaixo).
+
+  Cavalos
+    GET POST          /api/v1/horses/
+    GET PATCH DELETE  /api/v1/horses/{id}
+    GET               /api/v1/horses/{id}/positions?from=&to=   (epoch em s)
+    GET               /api/v1/horses/{id}/positions/latest
+    POST              /api/v1/horses/{id}/poll        (consulta a tag agora)
+  Nutrição
+    GET PUT           /api/v1/horses/{id}/meals
+    DELETE            /api/v1/horses/{id}/meals/{weekday}/{shift}
+  Alertas e Conta Google
+    GET               /api/v1/alerts/
+    GET               /api/v1/findhub/status   e   /api/v1/findhub/trackers
+    POST              /api/v1/findhub/login    e   /api/v1/findhub/secrets
+  Sensor
+    POST              /api/v1/device/upload    (chamado pelo ESP32)
+    GET               /api/v1/sensors/
+
+Nutrição (plano semanal: uma refeição por cavalo, dia e turno):
+  Gravar ou alterar:
+    PUT /api/v1/horses/1/meals
+    {"weekdays": [0, 1, 2, 3, 4, 5, 6], "shift": "T", "time": "13:00",
+     "kg": 2.5, "x": 50, "y": 30, "z": 20}
+  - weekdays: 0 = segunda … 6 = domingo; um dia só é [1]
+  - shift: M (manhã), T (tarde) ou N (noite);  time: HH:MM
+  - kg: maior que 0, até 50
+  - x, y, z: % de cada ração, inteiros; a soma precisa dar 100
+  Um turno por request; mandar de novo o mesmo dia e turno altera, não
+  duplica. A resposta é o plano inteiro do cavalo:
+    {"meals": [{"weekday": 0, "shift": "T", "time": "13:00", "kg": 2.5,
+                "x": 50, "y": 30, "z": 20}, ...]}
+  Remover a de terça de manhã: DELETE /api/v1/horses/1/meals/1/M  (204)
+  Erros: 401 sem token ou token vencido, 404 cavalo não existe, 422 campo
+  inválido (ex.: a soma das rações não dá 100).
+
+Sensor no cavalo (ESP32, firmware em E:\documents\Arduino\CavaloMonitor):
+  O ESP32 grava tudo no cartão SD (um bloco por minuto com todas as leituras)
+  e, a cada contato, manda ao servidor só o trecho que ainda não foi enviado.
+  Se um contato falha, o seguinte leva o que ficou para trás. Ele não tem
+  relógio: carimba com o tempo desde o boot e o servidor converte para a hora
+  real.
+
+  Configuração: /config.txt na raiz do cartão, lido quando o ESP32 liga
+  (modelo em config.exemplo.txt, na pasta do firmware):
+    wifi_ssid, wifi_pass   rede Wi-Fi
+    server                 http://<ip do servidor>:8000
+    key                    igual a SENSOR_KEY do backend/.env
+    upload_s               contato com o servidor, em segundos (600 = 10 min)
+    accel_hz               leituras por segundo do acelerômetro: 10, 20, 25,
+                           50 ou 100
+    temp_s, hr             temperatura a cada N s e frequência cardíaca (0 =
+                           sem sensor)
+
+  Envio:
+    POST /api/v1/device/upload?boot=<id do boot>&uptime_ms=<ms desde o boot>
+    X-Sensor-Id: <MAC do ESP32, 12 hex>
+    X-Sensor-Key: <SENSOR_KEY>
+    corpo: binário, cabeçalho CAV2 + registros (formato em main/sensor.py),
+           até 512 kB; 10 min de acelerômetro a 50 Hz dão ~180 kB
+    resposta: {"stored": 10, "duplicates": 0, "undated": 0}
+  - duplicates: trecho que já tinha chegado (reenvio); não grava de novo
+  - undated: blocos de um boot que nunca falou com o servidor; ficam só no
+    cartão
+  - 401 chave errada, 409 sensor sem cavalo, 413 corpo grande demais, 422
+    trecho corrompido (o ESP32 pula; continua no cartão)
+
+  No banco, cada minuto de cada sinal vira uma linha de sensor_blocks, ligada
+  ao cavalo por horse_id: resumo do minuto (mínimo, máximo e média) e as
+  leituras compactadas.
+
+  Vincular o sensor a um cavalo (ainda sem tela; use /docs):
+    GET   /api/v1/sensors/      lista os sensores que já fizeram contato
+    PATCH /api/v1/horses/{id}   {"sensor_id": "<mac>"}   (null desvincula)
+
+  Testar sem o ESP32, com o sensor já vinculado (de backend/):
+    ..\.venv\Scripts\python sim_sensor.py                    10 min simulados
+    ..\.venv\Scripts\python sim_sensor.py --csv D:\dados.csv  gravação real
+  (--sensor <mac> troca o sensor simulado; o padrão é f42dc9719d30)
 
 -> Lembrar de editar o arquivo da Jenkinsfile com o nome do seu projeto

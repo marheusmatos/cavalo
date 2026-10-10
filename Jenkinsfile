@@ -7,7 +7,7 @@ pipeline {
         HOST_PORT      = '5400'
         CONTAINER_PORT = '8000'
         DATA_DIR       = '/var/lib/jenkins/cavalo'
-        BASE_PATH      = '/pmo/cavalo'
+        BASE_PATH      = '/cavalo'
     }
 
     stages {
@@ -51,7 +51,7 @@ pipeline {
 
     post {
         failure {
-            echo 'Deploy falhou — verifique a credencial cavalo-credentials e o DATA_DIR.'
+            echo 'Deploy falhou'
         }
 
         success {

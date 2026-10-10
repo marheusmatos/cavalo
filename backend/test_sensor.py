@@ -361,3 +361,8 @@ def test_estaticos_sao_revalidados():
     r = client.get('/static/app.js')
     assert r.status_code == 200
     assert r.headers['cache-control'] == 'no-cache'
+    # o index aponta para o app.js pelo hash do conteúdo
+    index = client.get('/')
+    assert index.headers['cache-control'] == 'no-cache'
+    assert 'static/app.js?v=' in index.text
+    assert 'static/theme.css?v=' in index.text

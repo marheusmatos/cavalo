@@ -1,9 +1,10 @@
 import asyncio
+import hashlib
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from guard import SecurityMiddleware
 from starlette.middleware.sessions import SessionMiddleware
@@ -84,9 +85,28 @@ if FRONTEND_DIR.is_dir():
             '/static', RevalidatedStatic(directory=static_dir), name='static'
         )
 
+    def _index():
+        """index.html com ?v=<hash> no app.js e no theme.css.
+
+        O Cloudflare manda o navegador guardar .js e .css por 4 h, mesmo com
+        `no-cache` na origem; com o hash no endereço, arquivo novo é endereço
+        novo e o deploy aparece na hora.
+        """
+        html = (FRONTEND_DIR / 'index.html').read_text(encoding='utf-8')
+        for name in ('app.js', 'theme.css'):
+            path = static_dir / name
+            if path.is_file():
+                digest = hashlib.md5(path.read_bytes()).hexdigest()[:8]
+                html = html.replace(
+                    f'static/{name}', f'static/{name}?v={digest}'
+                )
+        return html
+
+    INDEX = _index()
+
     @app.get('/')
     def read_root():
-        return FileResponse(FRONTEND_DIR / 'index.html')
+        return HTMLResponse(INDEX, headers={'Cache-Control': 'no-cache'})
 
 else:
 

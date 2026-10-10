@@ -58,6 +58,19 @@ app.include_router(readings_router)
 FRONTEND_DIR = Path(settings.FRONTEND_DIR)
 
 
+class RevalidatedStatic(StaticFiles):
+    """Estáticos que o navegador e o proxy revalidam (ETag) a cada uso.
+
+    Sem `Cache-Control` o Cloudflare guarda o app.js por 4 h e, depois de um
+    deploy, as telas novas carregam com o script antigo.
+    """
+
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        response.headers['Cache-Control'] = 'no-cache'
+        return response
+
+
 @app.get('/health')
 def health():
     return {'status': 'ok'}
@@ -67,7 +80,9 @@ def health():
 if FRONTEND_DIR.is_dir():
     static_dir = FRONTEND_DIR / 'static'
     if static_dir.is_dir():
-        app.mount('/static', StaticFiles(directory=static_dir), name='static')
+        app.mount(
+            '/static', RevalidatedStatic(directory=static_dir), name='static'
+        )
 
     @app.get('/')
     def read_root():

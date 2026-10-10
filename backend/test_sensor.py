@@ -355,3 +355,9 @@ def test_leitura_series_e_raw(auth):
     assert r.status_code == 422
     r = client.get('/api/v1/horses/99999/sensor/series', headers=auth)
     assert r.status_code == 404
+
+
+def test_estaticos_sao_revalidados():
+    r = client.get('/static/app.js')
+    assert r.status_code == 200
+    assert r.headers['cache-control'] == 'no-cache'

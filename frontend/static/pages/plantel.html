@@ -1,0 +1,53 @@
+<!-- Tela: Plantel (lista de cavalos + cadastro) -->
+<section class="page">
+  <a id="googleBanner" class="card card--tap banner" href="#/google" hidden>
+    <span class="material-symbols-outlined" style="color:var(--status-warn)">link_off</span>
+    <div>
+      <div class="banner__title">Conta Google não conectada</div>
+      <div class="muted">Sem ela as tags não são consultadas. Toque para conectar.</div>
+    </div>
+    <span class="material-symbols-outlined muted">chevron_right</span>
+  </a>
+
+  <div class="search">
+    <md-outlined-text-field id="search" placeholder="Buscar cavalo…" aria-label="Buscar cavalo">
+      <span slot="leading-icon" class="material-symbols-outlined">search</span>
+    </md-outlined-text-field>
+  </div>
+
+  <div class="horse-grid" id="grid"></div>
+  <p id="empty" class="empty muted" hidden>Nenhum cavalo cadastrado. Toque em <b>Cadastrar</b>.</p>
+</section>
+
+<div class="fab-wrap">
+  <md-fab id="fabCad" variant="primary" label="Cadastrar">
+    <span slot="icon" class="material-symbols-outlined">add</span>
+  </md-fab>
+</div>
+
+<md-dialog id="cadDialog">
+  <div slot="headline">Cadastrar cavalo</div>
+  <form slot="content" id="cadForm" method="dialog" class="dialog-form">
+    <md-outlined-text-field id="cadNome" label="Nome"></md-outlined-text-field>
+    <md-outlined-text-field id="cadRaca" label="Raça"></md-outlined-text-field>
+    <md-outlined-text-field id="cadPeso" label="Peso (kg)" type="number" step="1" min="1"></md-outlined-text-field>
+
+    <div class="label muted">Tag de localização</div>
+    <md-outlined-select id="cadTag" label="Rastreador (Find Hub)"></md-outlined-select>
+
+    <div class="label muted">Cerca virtual e nutrição</div>
+    <md-outlined-select id="cadClone" label="Copiar de"></md-outlined-select>
+    <div id="cloneSummary" class="card" style="padding:12px;font-size:12.5px;line-height:1.5">
+      Clona a cerca virtual e o plano de nutrição de <b id="cloneName"></b>. Dá para ajustar depois nas telas de Localização e Nutrição.
+    </div>
+    <div id="manualPanel" hidden>
+      <div class="row" style="font-size:13px"><span>Raio da cerca</span><span id="cadRaioVal" class="mono muted">150 m</span></div>
+      <md-slider id="cadRaio" min="30" max="1000" step="10" value="150"></md-slider>
+      <div class="muted" style="font-size:12px">O centro da cerca é definido na tela de Localização; a nutrição, na tela de Nutrição.</div>
+    </div>
+  </form>
+  <div slot="actions">
+    <md-text-button id="cadCancel">Cancelar</md-text-button>
+    <md-filled-button id="cadOk">Cadastrar</md-filled-button>
+  </div>
+</md-dialog>

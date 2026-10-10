@@ -1,0 +1,39 @@
+<!-- Tela: Conta Google (conexão com a rede Find Hub via GoogleFindMyTools) -->
+<section class="page page--narrow pad">
+  <div class="card">
+    <div class="step">
+      <span class="material-symbols-outlined" id="stRepoIcon"></span>
+      <div><div class="step__title">Biblioteca GoogleFindMyTools</div><div class="muted hint" id="stRepo"></div></div>
+    </div>
+    <md-divider></md-divider>
+    <div class="step">
+      <span class="material-symbols-outlined" id="stLoginIcon"></span>
+      <div><div class="step__title">Conta Google</div><div class="muted hint" id="stLogin"></div></div>
+    </div>
+  </div>
+
+  <div class="card running" id="stRunning" hidden>
+    <md-circular-progress indeterminate></md-circular-progress>
+    <div id="stStep"></div>
+  </div>
+  <div class="card error-card" id="stError" role="alert" hidden></div>
+
+  <div class="google-actions">
+    <md-filled-button id="connect"><span slot="icon" class="material-symbols-outlined">login</span>Conectar conta Google</md-filled-button>
+    <md-outlined-button id="upload"><span slot="icon" class="material-symbols-outlined">upload_file</span>Enviar secrets.json</md-outlined-button>
+    <input type="file" id="secrets" accept=".json,application/json" hidden />
+  </div>
+  <p class="muted hint">
+    A tag precisa estar pareada no app <b>Encontre Meu Dispositivo</b>. O login não abre dentro do app
+    (o Google proíbe iframe com <span class="mono">X-Frame-Options: DENY</span>): o servidor abre uma
+    janela do Chrome <b>na máquina onde ele roda</b>. Entre nela 2 vezes: a conta e depois o PIN/padrão
+    de desbloqueio do seu Android. Servidor sem tela? Faça o login numa máquina com Chrome e envie o
+    <span class="mono">backend/vendor/GoogleFindMyTools/Auth/secrets.json</span>.
+  </p>
+
+  <div class="section-label muted">Rastreadores da conta</div>
+  <div class="card list" id="trackers"></div>
+
+  <div class="section-label muted">Últimas consultas do poller</div>
+  <div class="card list" id="polls"></div>
+</section>

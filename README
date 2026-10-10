@@ -1,4 +1,32 @@
-rodar: 
-uvicorn main.app:app --reload --app-dir backend
+Cavalo: localização do cavalo por tag BLE (rede Google Find Hub)
+
+Rodar (Windows, na raiz do repo):
+  python -m venv .venv
+  .venv\Scripts\pip install -r backend\requirements.txt
+  cd backend
+  ..\.venv\Scripts\alembic upgrade head
+  cd ..
+  .venv\Scripts\uvicorn main.app:app --app-dir backend
+  -> http://localhost:8000  (admin / admin; troque em backend/.env)
+
+  Sem --reload: o app baixa a lib (.py) para backend/vendor e o reload
+  reiniciaria o servidor no meio do login.
+
+Testes:
+  cd backend
+  ..\.venv\Scripts\pytest -v
+  E2E do front (servidor rodando, conta Google conectada, 1 cavalo com tag):
+  .venv\Scripts\python frontend\e2e.py <pasta_prints> mobile|desktop
+
+Telas (visual: E:\documents\Plataforma de monitoramento equino\html):
+  Login, Plantel (+ cadastro), Cavalo, Localização (trajeto real + cerca),
+  Nutrição (plano semanal), Biometria e Atividade (aguardam sensor),
+  Alertas (sino) e Conta Google (ícone na app bar do Plantel).
+
+Sem conta conectada o app abre em "Conta Google": Conectar conta Google
+(abre o Chrome na máquina do servidor) > "Usar como cavalo" no rastreador.
+A SeekTag precisa aparecer no app Encontre Meu Dispositivo.
+Testar sem tag real: DEMO_SEED=true no backend/.env com o banco vazio cria
+o "Cavalo Teste" com tag simulada.
 
 -> Lembrar de editar o arquivo da Jenkinsfile com o nome do seu projeto

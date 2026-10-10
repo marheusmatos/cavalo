@@ -1,0 +1,27 @@
+<!-- Tela: Biometria (aguarda sensor; a tag BLE só dá posição) -->
+<section class="page pad">
+  <div class="card note">
+    <span class="material-symbols-outlined">sensors_off</span>
+    <div><b>Sem sensor de biometria vinculado.</b> A tag de localização (BLE) não mede frequência cardíaca, lactato nem temperatura.</div>
+  </div>
+
+  <md-outlined-select id="day" label="Dia" disabled style="width:100%;margin-bottom:16px"></md-outlined-select>
+
+  <div class="charts">
+    <div class="card chart-card">
+      <div class="chart-head"><span>Frequência cardíaca</span><span class="chart-val" style="color:var(--status-crit)">— <small>bpm pico</small></span></div>
+      <div class="chart-empty">Sem dados</div>
+      <div class="chart-note">Faixa de repouso 34–46 bpm</div>
+    </div>
+    <div class="card chart-card">
+      <div class="chart-head"><span>Lactato</span><span class="chart-val" style="color:var(--status-warn)">— <small>mmol/L pico</small></span></div>
+      <div class="chart-empty">Sem dados</div>
+      <div class="chart-note">Faixa aeróbica &lt; 2.0 mmol/L</div>
+    </div>
+    <div class="card chart-card">
+      <div class="chart-head"><span>Temperatura</span><span class="chart-val" style="color:var(--md-sys-color-primary)">— <small>°C pico</small></span></div>
+      <div class="chart-empty">Sem dados</div>
+      <div class="chart-note">Faixa normal 37.5–38.5 °C</div>
+    </div>
+  </div>
+</section>

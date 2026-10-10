@@ -35,3 +35,8 @@ env/
 Thumbs.db
 .idea/
 .vscode/
+
+# ─── Cavalo ────────────────────────────────────────────────────────────────
+# GoogleFindMyTools baixado em runtime (Auth/secrets.json tem os tokens!)
+vendor/
+*.db

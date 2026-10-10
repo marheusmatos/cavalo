@@ -1,0 +1,7 @@
+# Nunca na imagem: tokens da conta Google e bancos locais.
+backend/vendor
+**/*.db
+**/.env
+**/__pycache__
+.venv
+.git

@@ -2,12 +2,12 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME     = 'editaraqui'
-        CONTAINER_NAME = 'editaraqui'
+        IMAGE_NAME     = 'cavalo'
+        CONTAINER_NAME = 'cavalo'
         HOST_PORT      = '5400'
         CONTAINER_PORT = '8000'
-        DATA_DIR       = '/var/lib/jenkins/editaraqui'
-        BASE_PATH      = '/pmo/editaraqui'
+        DATA_DIR       = '/var/lib/jenkins/cavalo'
+        BASE_PATH      = '/pmo/cavalo'
     }
 
     stages {
@@ -20,7 +20,7 @@ pipeline {
         stage('Deploy') {
             steps {
                 withCredentials([
-                    file(credentialsId: 'editaraqui-credentials', variable: 'CREDENCIAIS')
+                    file(credentialsId: 'cavalo-credentials', variable: 'CREDENCIAIS')
                 ]) {
                     sh '''
                         set -e
@@ -51,7 +51,7 @@ pipeline {
 
     post {
         failure {
-            echo 'Deploy falhou — verifique a credencial editaraqui-credentials e o DATA_DIR.'
+            echo 'Deploy falhou — verifique a credencial cavalo-credentials e o DATA_DIR.'
         }
 
         success {

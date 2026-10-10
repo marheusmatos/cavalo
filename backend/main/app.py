@@ -1,3 +1,5 @@
+import asyncio
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -7,11 +9,28 @@ from guard import SecurityMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from config import guard, security_config
+from main import tracking
 from main.routes.auth import auth_router
-from main.routes.routers import car_router
+from main.routes.findhub import findhub_router
+from main.routes.routers import alerts_router, horse_router
 from main.settings import settings
 
-app = FastAPI(title='Fast API Template', description='Template', version='0.1.0')
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    if settings.DEMO_SEED:
+        tracking.seed_demo()
+    poller = asyncio.create_task(tracking.poll_forever())
+    yield
+    poller.cancel()
+
+
+app = FastAPI(
+    title='Cavalo',
+    description='Localização de cavalos via tag BLE na rede Google Find Hub',
+    version='0.1.0',
+    lifespan=lifespan,
+)
 
 # --- Middleware de segurança (fastapi-guard) -------------------------------
 # Rate limit global + suporte aos decorators por rota. Sem Redis.
@@ -24,7 +43,9 @@ app.add_middleware(SessionMiddleware, secret_key=settings.SESSION_SECRET_KEY)
 app.state.guard_decorator = guard
 
 app.include_router(auth_router)
-app.include_router(car_router)
+app.include_router(horse_router)
+app.include_router(findhub_router)
+app.include_router(alerts_router)
 
 FRONTEND_DIR = Path(settings.FRONTEND_DIR)
 
@@ -38,13 +59,12 @@ def health():
 if FRONTEND_DIR.is_dir():
     static_dir = FRONTEND_DIR / 'static'
     if static_dir.is_dir():
-        app.mount(
-            '/static', StaticFiles(directory=static_dir), name='static'
-        )
+        app.mount('/static', StaticFiles(directory=static_dir), name='static')
 
     @app.get('/')
     def read_root():
         return FileResponse(FRONTEND_DIR / 'index.html')
+
 else:
 
     @app.get('/')

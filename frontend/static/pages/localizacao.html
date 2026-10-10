@@ -1,0 +1,39 @@
+<!-- Tela: Localização (trajeto real da tag + cerca virtual) -->
+<div class="map-screen" id="mapScreen">
+  <div id="map" class="map"></div>
+  <span id="crosshair" class="crosshair material-symbols-outlined" hidden>add</span>
+
+  <div class="map-top">
+    <div class="segmented" role="tablist" id="range">
+      <button class="seg" role="tab" aria-selected="true" data-v="0">Hoje</button>
+      <button class="seg" role="tab" aria-selected="false" data-v="7">7 dias</button>
+      <button class="seg" role="tab" aria-selected="false" data-v="30">30 dias</button>
+    </div>
+    <div id="notice" class="overlay-card" hidden></div>
+    <div id="fenceBanner" class="overlay-card" hidden>
+      <span class="material-symbols-outlined">my_location</span>
+      <div><b>Editando cerca virtual</b><span class="muted">Arraste o mapa para posicionar o centro e ajuste o raio</span></div>
+    </div>
+  </div>
+
+  <div class="legend-card overlay-card" id="legend">
+    <div><span class="route"></span><span class="muted">Rota percorrida</span></div>
+    <div><span class="ring"></span><span class="muted">Cerca virtual</span></div>
+    <div><span class="material-symbols-outlined muted" style="font-size:14px">straighten</span><span class="stat" id="statDist"></span></div>
+  </div>
+
+  <div class="map-fab" id="fenceFab">
+    <md-fab variant="primary" label="Definir cerca" id="fenceStart">
+      <span slot="icon" class="material-symbols-outlined">fence</span>
+    </md-fab>
+  </div>
+
+  <div class="fence-panel overlay-card" id="fenceEdit" hidden>
+    <div class="row" style="font:500 13px Roboto,sans-serif"><span>Raio da cerca</span><span id="fenceRadius" class="mono muted">150 m</span></div>
+    <md-slider id="rslider" min="30" max="1000" step="10" value="150"></md-slider>
+    <div class="row row--actions" style="margin-top:8px">
+      <md-text-button id="fenceCancel">Cancelar</md-text-button>
+      <md-filled-button id="fenceSave">Salvar cerca</md-filled-button>
+    </div>
+  </div>
+</div>

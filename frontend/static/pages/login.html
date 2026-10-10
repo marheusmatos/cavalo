@@ -1,0 +1,27 @@
+<!-- Tela: Login -->
+<section class="login">
+  <div class="brand">
+    <div class="brand__logo">
+      <svg width="38" height="38" viewBox="0 0 38 38" fill="none" stroke="var(--md-sys-color-primary)" stroke-width="3" stroke-linecap="round" aria-hidden="true">
+        <path d="M11 6.5C8 9 6.5 13 6.5 18c0 8 5.6 13.5 12.5 13.5S31.5 26 31.5 18c0-5-1.5-9-4.5-11.5"/>
+        <circle cx="9.5" cy="24" r="1.4" fill="currentColor" stroke="none"/>
+        <circle cx="11.5" cy="29" r="1.4" fill="currentColor" stroke="none"/>
+        <circle cx="28.5" cy="24" r="1.4" fill="currentColor" stroke="none"/>
+        <circle cx="26.5" cy="29" r="1.4" fill="currentColor" stroke="none"/>
+      </svg>
+    </div>
+    <div class="brand__name">ferradura</div>
+    <div class="brand__sub muted">Monitoramento de atletas equinos</div>
+  </div>
+
+  <form id="loginForm" novalidate>
+    <md-outlined-text-field id="user" label="Usuário" autocomplete="username" required>
+      <span slot="leading-icon" class="material-symbols-outlined">person</span>
+    </md-outlined-text-field>
+    <md-outlined-text-field id="pass" label="Senha" type="password" autocomplete="current-password" required>
+      <span slot="leading-icon" class="material-symbols-outlined">lock</span>
+    </md-outlined-text-field>
+    <p id="loginError" class="error-text" role="alert"></p>
+    <md-filled-button type="submit">Entrar</md-filled-button>
+  </form>
+</section>

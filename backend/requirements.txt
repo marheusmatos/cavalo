@@ -46,3 +46,24 @@ watchfiles==1.1.1
 websockets==16.0
 fastapi-guard==7.2.2
 Authlib==1.7.2
+# Faltavam no template (SessionMiddleware e security.py)
+itsdangerous==2.2.0
+PyJWT==2.15.1
+# GoogleFindMyTools (baixado do GitHub em runtime, commit fixo em settings)
+undetected-chromedriver==3.5.5
+selenium==4.49.0
+setuptools==84.0.0
+gpsoauth==2.0.0
+requests==2.34.2
+beautifulsoup4==4.15.0
+pyscrypt==1.6.2
+cryptography==50.0.1
+pycryptodomex==3.23.0
+ecdsa==0.19.2
+pytz==2026.4
+protobuf==7.36.2
+h2==4.4.1
+aiohttp==3.14.3
+http_ece==1.2.1
+# Testes
+pytest==9.1.1

@@ -1,0 +1,50 @@
+<!-- Tela: Cavalo (resumo + atalhos para as telas de detalhe) -->
+<section class="page">
+  <div class="hero">
+    <div class="hero__avatar">
+      <svg width="42" height="42" viewBox="0 0 38 38" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M11 6.5C8 9 6.5 13 6.5 18c0 8 5.6 13.5 12.5 13.5S31.5 26 31.5 18c0-5-1.5-9-4.5-11.5"/></svg>
+      <span id="hInitial"></span>
+    </div>
+    <div style="min-width:0">
+      <div id="hName" class="hero__name"></div>
+      <div id="hBreed" class="muted" style="font-size:13px;margin-top:4px"></div>
+      <div id="hWeight" class="muted mono" style="font-size:13px;margin-top:2px"></div>
+    </div>
+  </div>
+
+  <div class="detail-grid">
+    <a class="card card--tap tile" id="cLoc">
+      <div class="tile__head" style="color:var(--md-sys-color-primary)"><span class="material-symbols-outlined">location_on</span><span>Localização</span></div>
+      <div class="tile__spacer"></div>
+      <div class="tile__main" id="locMain"></div>
+      <div class="tile__sub muted" id="locSub"></div>
+    </a>
+
+    <a class="card card--tap tile" id="cBio">
+      <div class="tile__head" style="color:var(--status-crit)"><span class="material-symbols-outlined">monitor_heart</span><span>Biometria</span></div>
+      <div class="tile__spacer"></div>
+      <div class="tile__nums">
+        <div><div class="big-num big-num--sm">—</div><div class="muted">bpm FC</div></div>
+        <div><div class="big-num big-num--sm">—</div><div class="muted">lactato</div></div>
+      </div>
+      <div class="tile__sub muted">Sem sensor</div>
+    </a>
+
+    <a class="card card--tap tile" id="cAtiv">
+      <div class="tile__head" style="color:var(--status-ok)"><span class="material-symbols-outlined">sprint</span><span>Atividade</span></div>
+      <div class="tile__spacer"></div>
+      <div class="tile__nums">
+        <div><div class="big-num big-num--sm">—</div><div class="muted">pulos</div></div>
+        <div><div class="big-num big-num--sm">—</div><div class="muted">voltas</div></div>
+      </div>
+      <div class="tile__sub muted">Sem sensor</div>
+    </a>
+
+    <a class="card card--tap tile" id="cNutri">
+      <div class="tile__head" style="color:var(--status-warn)"><span class="material-symbols-outlined">restaurant</span><span>Nutrição</span></div>
+      <div class="tile__spacer"></div>
+      <div class="tile__main mono" id="nutriMain"></div>
+      <div class="tile__sub muted" id="nutriSub"></div>
+    </a>
+  </div>
+</section>

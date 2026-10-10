@@ -1,0 +1,27 @@
+<!-- Tela: Atividade (aguarda acelerômetro; a tag BLE só dá posição) -->
+<section class="page pad">
+  <div class="card note">
+    <span class="material-symbols-outlined">sensors_off</span>
+    <div><b>Sem acelerômetro vinculado.</b> Pulos e voltas dependem de um sensor de movimento; a tag de localização só informa posição. Distância e trajeto estão na tela de Localização.</div>
+  </div>
+
+  <div class="counters">
+    <div class="card"><div class="metric-label">Pulos</div><div class="big-num" style="color:var(--status-ok)">—</div></div>
+    <div class="card"><div class="metric-label">Voltas</div><div class="big-num">—</div></div>
+  </div>
+
+  <div class="card chart-card">
+    <div class="chart-head" style="align-items:center">
+      <span>Acelerômetro</span>
+      <span class="axis-legend">
+        <span style="color:var(--md-sys-color-primary)">● X</span>
+        <span style="color:#4DA3FF">● Y</span>
+        <span style="color:var(--status-ok)">● Z</span>
+      </span>
+    </div>
+    <div class="chart-empty">Sem dados</div>
+  </div>
+
+  <div class="section-label muted">Eventos</div>
+  <div class="card muted" style="font-size:13px">Nenhum evento registrado.</div>
+</section>

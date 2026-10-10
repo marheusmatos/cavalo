@@ -39,4 +39,10 @@ Thumbs.db
 # ─── Cavalo ────────────────────────────────────────────────────────────────
 # GoogleFindMyTools baixado em runtime (Auth/secrets.json tem os tokens!)
 vendor/
+# Banco SQLite local (backend/horse.db) e os arquivos temporários dele
 *.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3

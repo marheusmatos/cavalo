@@ -129,6 +129,35 @@ def decode(block):
     return values
 
 
+def buckets(blocks, from_ms, to_ms, points):
+    """Leituras de blocos 'A' em g: média por intervalo de uma janela.
+
+    A janela [from_ms, to_ms) é cortada em `points` intervalos iguais; só os
+    que têm leitura aparecem. Devolve {t (epoch ms, meio do intervalo), x, y,
+    z}.
+    """
+    step = (to_ms - from_ms) / points
+    sums = [[0.0, 0.0, 0.0, 0] for _ in range(points)]
+    for b in blocks:
+        values = decode(b)
+        per = b.dur_ms / b.n  # ms entre leituras
+        first = b.ts_ms + per / 2 - from_ms
+        for i in range(b.n):
+            k = int((first + i * per) // step)
+            if 0 <= k < points:
+                acc = sums[k]
+                for c in range(3):
+                    acc[c] += values[i * b.ch + c] * b.scale
+                acc[3] += 1
+    out = {'t': [], 'x': [], 'y': [], 'z': []}
+    for k, (x, y, z, n) in enumerate(sums):
+        if n:
+            out['t'].append(round(from_ms + (k + 0.5) * step))
+            for axis, total in (('x', x), ('y', y), ('z', z)):
+                out[axis].append(round(total / n, 4))
+    return out
+
+
 def _clock(session, horse_id, boot, contact):
     """Função uptime (ms) -> epoch (ms) para os registros de `boot`.
 

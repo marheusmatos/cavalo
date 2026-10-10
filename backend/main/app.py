@@ -13,7 +13,11 @@ from main import tracking
 from main.routes.auth import auth_router
 from main.routes.findhub import findhub_router
 from main.routes.routers import alerts_router, horse_router
-from main.routes.sensor import device_router, sensors_router
+from main.routes.sensor import (
+    device_router,
+    readings_router,
+    sensors_router,
+)
 from main.settings import settings
 
 
@@ -49,6 +53,7 @@ app.include_router(findhub_router)
 app.include_router(alerts_router)
 app.include_router(device_router)
 app.include_router(sensors_router)
+app.include_router(readings_router)
 
 FRONTEND_DIR = Path(settings.FRONTEND_DIR)
 

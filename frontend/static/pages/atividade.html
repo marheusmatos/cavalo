@@ -1,25 +1,34 @@
-<!-- Tela: Atividade (aguarda acelerômetro; a tag BLE só dá posição) -->
+<!-- Tela: Atividade (acelerômetro do sensor preso ao cavalo) -->
 <section class="page pad">
-  <div class="card note">
-    <span class="material-symbols-outlined">sensors_off</span>
-    <div><b>Sem acelerômetro vinculado.</b> Pulos e voltas dependem de um sensor de movimento; a tag de localização só informa posição. Distância e trajeto estão na tela de Localização.</div>
-  </div>
+  <div class="card note" id="sensorNote" hidden></div>
 
+  <md-outlined-select id="day" label="Dia" style="width:100%;margin-bottom:16px"></md-outlined-select>
+
+  <!-- Pulos e voltas dependem do classificador de movimento, ainda não feito. -->
   <div class="counters">
     <div class="card"><div class="metric-label">Pulos</div><div class="big-num" style="color:var(--status-ok)">—</div></div>
     <div class="card"><div class="metric-label">Voltas</div><div class="big-num">—</div></div>
   </div>
 
-  <div class="card chart-card">
-    <div class="chart-head" style="align-items:center">
-      <span>Acelerômetro</span>
-      <span class="axis-legend">
-        <span style="color:var(--md-sys-color-primary)">● X</span>
-        <span style="color:#4DA3FF">● Y</span>
-        <span style="color:var(--status-ok)">● Z</span>
-      </span>
+  <div class="charts charts--stack">
+    <div class="card chart-card">
+      <div class="chart-head"><span>Intensidade do movimento</span><span class="chart-val" style="color:var(--md-sys-color-primary)"><span id="intVal">—</span> <small>g pico</small></span></div>
+      <div id="intChart"><div class="chart-empty">Sem dados</div></div>
+      <div class="chart-note">Quanto a aceleração se afasta de 1 g (parado), por minuto: linha cheia = média, linha clara = pico</div>
     </div>
-    <div class="chart-empty">Sem dados</div>
+
+    <div class="card chart-card">
+      <div class="chart-head" style="align-items:center">
+        <span>Acelerômetro</span>
+        <span class="axis-legend">
+          <span style="color:var(--md-sys-color-primary)">● X</span>
+          <span style="color:#4DA3FF">● Y</span>
+          <span style="color:var(--status-ok)">● Z</span>
+        </span>
+      </div>
+      <div id="accChart"><div class="chart-empty">Sem dados</div></div>
+      <div class="chart-note" id="accNote">Últimos 10 minutos recebidos no dia, em g (média por segundo)</div>
+    </div>
   </div>
 
   <div class="section-label muted">Eventos</div>

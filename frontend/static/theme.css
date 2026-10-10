@@ -340,7 +340,7 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* ---------- gráficos (biometria / atividade) ---------- */
-.charts { display: grid; gap: 14px; }
+.charts { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }
 .chart-card { padding: 14px 12px 8px; }
 .chart-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 0 4px 4px; }
 .chart-head > span:first-child { font: 500 14px Roboto, sans-serif; }
@@ -352,6 +352,15 @@ a { color: inherit; text-decoration: none; }
   border-bottom: 1px dashed var(--md-sys-color-outline);
   font-size: 12px; color: var(--md-sys-color-on-surface-variant);
 }
+.charts--stack { grid-template-columns: minmax(0, 1fr) !important; }
+.chart { display: flex; gap: 6px; margin: 4px; }
+.chart svg { flex: 1; min-width: 0; height: 120px; border-bottom: 1px solid var(--md-sys-color-outline); }
+.chart__y, .chart__x {
+  display: flex; justify-content: space-between;
+  font: 500 10px var(--mono); color: var(--md-sys-color-on-surface-variant);
+}
+.chart__y { flex-direction: column; text-align: right; min-width: 30px; }
+.chart__x { margin: 0 4px 0 40px; }
 .chart-note { font: 400 10.5px Roboto, sans-serif; color: var(--md-sys-color-on-surface-variant); padding: 6px 4px 2px; }
 .counters { display: flex; gap: 12px; margin-bottom: 16px; }
 .counters .card { flex: 1; }
@@ -485,7 +494,7 @@ md-dialog { max-width: min(560px, calc(100vw - 32px)); }
   .hero { margin: 24px 24px 4px; padding: 24px; }
   .detail-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; padding: 16px 24px 24px; }
   .tile { min-height: 160px; }
-  .charts { grid-template-columns: repeat(3, 1fr); }
+  .charts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .meal { min-height: 72px; padding: 9px 8px; }
   .meal .t { font-size: 12px; }
   .meal .k { font-size: 12px; }

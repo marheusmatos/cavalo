@@ -81,6 +81,87 @@ async function fillSelect(select, options) {
   select.reset();
 }
 
+// Seletor "Dia" (hoje e os 6 anteriores). Devolve a função que dá o dia
+// escolhido como [from, to] em epoch (s), no fuso do navegador.
+async function daySelect(onChange) {
+  const select = $('day');
+  const start = (i) => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - i);
+    return d;
+  };
+  await fillSelect(select, Array.from({ length: 7 }, (_, i) => {
+    const d = start(i);
+    const weekday = d.toLocaleDateString('pt-BR', { weekday: 'long' }).split('-')[0];
+    return option(i, `${weekday[0].toUpperCase()}${weekday.slice(1)} · ${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`, i === 0);
+  }));
+  select.addEventListener('change', onChange);
+  return () => {
+    const from = Math.floor(start(Number(select.value) || 0) / 1000);
+    return [from, from + 86400];
+  };
+}
+
+// Aviso no topo de Atividade/Biometria: sem sensor, sem dados ou último dado.
+function sensorNote(horse, lastTs, waiting) {
+  const el = $('sensorNote');
+  const [icon, title, text] = !horse.sensor_id
+    ? ['sensors_off', 'Sem sensor vinculado.', 'Vincule o ESP32 a este cavalo (sensor_id no cadastro) para receber os dados.']
+    : !lastTs
+      ? ['sensors_off', 'Sem dados.', waiting]
+      : ['sensors', `Sensor ${horse.sensor_id}.`, `Último dado ${ago(lastTs)} (${hora(lastTs)}).`];
+  el.hidden = false;
+  el.innerHTML = '<span class="material-symbols-outlined"></span><div><b></b> <span></span></div>';
+  el.querySelector('.material-symbols-outlined').textContent = icon;
+  el.querySelector('.material-symbols-outlined').style.color = lastTs ? 'var(--status-ok)' : '';
+  el.querySelector('b').textContent = title;
+  el.querySelector('b + span').textContent = text;
+}
+
+// Eixo do tempo de um gráfico do dia: do primeiro ao último ponto (o sensor
+// pode ter mandado só um trecho do dia), com pelo menos 1 h.
+function span(points) {
+  const x0 = points[0]?.ts ?? 0;
+  const last = points.at(-1);
+  return { x0, x1: Math.max(x0 + 3600, last ? last.ts + last.dur : 0) };
+}
+
+// Gráfico de linhas em SVG. series: [{ color, opacity, pts: [[x (epoch s), y]] }].
+// A linha é interrompida onde faltam dados por mais de `gap` segundos.
+function lineChart(el, series, { x0, x1, gap, min, digits = 2, seconds = false }) {
+  const ys = series.flatMap((s) => s.pts.map((p) => p[1]));
+  if (!ys.length) {
+    el.innerHTML = '<div class="chart-empty">Sem dados</div>';
+    return;
+  }
+  const W = 600;
+  const H = 120;
+  let lo = min ?? Math.min(...ys);
+  let hi = Math.max(...ys);
+  if (hi - lo < 1e-9) hi = lo + 1; // linha reta: evita dividir por zero
+  if (min == null) lo -= (hi - lo) * 0.08;
+  hi += (hi - lo) * 0.08;
+  const px = (x) => ((x - x0) / (x1 - x0)) * W;
+  const py = (y) => H - ((y - lo) / (hi - lo)) * H;
+  const paths = series.map((s) => {
+    let d = '';
+    let prev = -Infinity;
+    for (const [x, y] of s.pts) {
+      d += `${x - prev > gap ? 'M' : 'L'}${px(x).toFixed(1)} ${py(y).toFixed(1)}`;
+      prev = x;
+    }
+    // "h0" faz um ponto isolado aparecer (com a ponta arredondada)
+    return `<path d="${d}h0" fill="none" stroke="${s.color}" stroke-opacity="${s.opacity ?? 1}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
+  });
+  const time = (ts) => new Date(ts * 1000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', ...(seconds && { second: '2-digit' }) });
+  el.innerHTML = `<div class="chart">
+      <div class="chart__y"><span>${num(hi, digits)}</span><span>${num(lo, digits)}</span></div>
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${paths.join('')}</svg>
+    </div>
+    <div class="chart__x"><span>${time(x0)}</span><span>${time((x0 + x1) / 2)}</span><span>${time(x1 - 1)}</span></div>`;
+}
+
 function listItem(title, sub, action) {
   const row = document.createElement('div');
   row.className = 'list-item';
@@ -515,18 +596,60 @@ const pages = {
     timer = setInterval(() => editing || draw(), 60_000); // o poller grava a cada ~10 min
   },
 
-  async biometria({ horse }) {
+  async biometria({ horse, alive }) {
     bar({ title: 'Biometria', back: `#/cavalo/${horse.id}` });
-    const today = Date.now();
-    await fillSelect($('day'), Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(today - i * 86_400_000);
-      const weekday = d.toLocaleDateString('pt-BR', { weekday: 'long' }).split('-')[0];
-      return option(i, `${weekday[0].toUpperCase()}${weekday.slice(1)} · ${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`, i === 0);
-    }));
+    const day = await daySelect(draw);
+
+    async function draw() {
+      const [from, to] = day();
+      const [hr, temp] = await Promise.all(['H', 'T'].map((kind) =>
+        api(`api/v1/horses/${horse.id}/sensor/series?kind=${kind}&from=${from}&to=${to}`)));
+      if (!alive()) return;
+      const last = Math.max(hr.last_ts ?? 0, temp.last_ts ?? 0);
+      sensorNote(horse, last, 'O sensor ainda não mandou frequência cardíaca nem temperatura (hr e temp_s no config.txt do cartão).');
+      for (const [s, chart, val, color, digits] of [
+        [hr, 'hrChart', 'hrVal', 'var(--status-crit)', 0],
+        [temp, 'tChart', 'tVal', 'var(--md-sys-color-primary)', 1],
+      ]) {
+        $(val).textContent = s.points.length ? num(Math.max(...s.points.map((p) => p.max)), digits) : '—';
+        lineChart($(chart), [{ color, pts: s.points.map((p) => [p.ts, p.avg]) }], { ...span(s.points), gap: 300, digits });
+      }
+    }
+
+    await draw();
+    timer = setInterval(draw, 60_000);
   },
 
-  atividade({ horse }) {
+  async atividade({ horse, alive }) {
     bar({ title: 'Atividade', back: `#/cavalo/${horse.id}` });
+    const day = await daySelect(draw);
+
+    async function draw() {
+      const [from, to] = day();
+      const s = await api(`api/v1/horses/${horse.id}/sensor/series?kind=A&from=${from}&to=${to}`);
+      if (!alive()) return;
+      sensorNote(horse, s.last_ts, 'Sensor vinculado, aguardando o primeiro envio.');
+      $('intVal').textContent = s.points.length ? num(Math.max(...s.points.map((p) => p.max))) : '—';
+      lineChart($('intChart'), [
+        { color: 'var(--md-sys-color-primary)', opacity: 0.35, pts: s.points.map((p) => [p.ts, p.max]) },
+        { color: 'var(--md-sys-color-primary)', pts: s.points.map((p) => [p.ts, p.avg]) },
+      ], { ...span(s.points), gap: 300, min: 0 });
+
+      // Leituras x, y, z dos últimos 10 min que chegaram no dia escolhido.
+      const end = s.points.at(-1);
+      const rawTo = end ? end.ts + end.dur + 1 : 0;
+      const raw = end ? await api(`api/v1/horses/${horse.id}/sensor/raw?from=${rawTo - 600}&to=${rawTo}&points=600`) : { t: [] };
+      if (!alive()) return;
+      const axis = (k) => raw.t.map((t, i) => [t / 1000, raw[k][i]]);
+      lineChart($('accChart'), [
+        { color: 'var(--md-sys-color-primary)', pts: axis('x') },
+        { color: '#4DA3FF', pts: axis('y') },
+        { color: 'var(--status-ok)', pts: axis('z') },
+      ], { x0: rawTo - 600, x1: rawTo, gap: 5, seconds: true });
+    }
+
+    await draw();
+    timer = setInterval(draw, 60_000); // o sensor manda a cada ~10 min
   },
 
   async nutricao({ horse }) {

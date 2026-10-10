@@ -1,26 +1,24 @@
-<!-- Tela: Biometria (aguarda sensor; a tag BLE só dá posição) -->
+<!-- Tela: Biometria (frequência cardíaca e temperatura do sensor) -->
 <section class="page pad">
-  <div class="card note">
-    <span class="material-symbols-outlined">sensors_off</span>
-    <div><b>Sem sensor de biometria vinculado.</b> A tag de localização (BLE) não mede frequência cardíaca, lactato nem temperatura.</div>
-  </div>
+  <div class="card note" id="sensorNote" hidden></div>
 
-  <md-outlined-select id="day" label="Dia" disabled style="width:100%;margin-bottom:16px"></md-outlined-select>
+  <md-outlined-select id="day" label="Dia" style="width:100%;margin-bottom:16px"></md-outlined-select>
 
   <div class="charts">
     <div class="card chart-card">
-      <div class="chart-head"><span>Frequência cardíaca</span><span class="chart-val" style="color:var(--status-crit)">— <small>bpm pico</small></span></div>
-      <div class="chart-empty">Sem dados</div>
+      <div class="chart-head"><span>Frequência cardíaca</span><span class="chart-val" style="color:var(--status-crit)"><span id="hrVal">—</span> <small>bpm pico</small></span></div>
+      <div id="hrChart"><div class="chart-empty">Sem dados</div></div>
       <div class="chart-note">Faixa de repouso 34–46 bpm</div>
     </div>
+    <!-- Lactato: não há sensor para ele no ESP32. -->
     <div class="card chart-card">
       <div class="chart-head"><span>Lactato</span><span class="chart-val" style="color:var(--status-warn)">— <small>mmol/L pico</small></span></div>
       <div class="chart-empty">Sem dados</div>
       <div class="chart-note">Faixa aeróbica &lt; 2.0 mmol/L</div>
     </div>
     <div class="card chart-card">
-      <div class="chart-head"><span>Temperatura</span><span class="chart-val" style="color:var(--md-sys-color-primary)">— <small>°C pico</small></span></div>
-      <div class="chart-empty">Sem dados</div>
+      <div class="chart-head"><span>Temperatura</span><span class="chart-val" style="color:var(--md-sys-color-primary)"><span id="tVal">—</span> <small>°C pico</small></span></div>
+      <div id="tChart"><div class="chart-empty">Sem dados</div></div>
       <div class="chart-note">Faixa normal 37.5–38.5 °C</div>
     </div>
   </div>

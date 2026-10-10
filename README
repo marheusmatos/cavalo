@@ -24,9 +24,13 @@ Testes:
 
 Telas (visual: E:\documents\Plataforma de monitoramento equino\html):
   Login, Plantel (+ cadastro), Cavalo, Localização (trajeto real + cerca),
-  Nutrição (plano semanal), Alertas (sino) e Conta Google (ícone na app bar
-  do Plantel). Biometria e Atividade ainda não mostram dados: o servidor já
-  recebe e guarda o que o sensor manda, falta a leitura para as telas.
+  Nutrição (plano semanal), Atividade, Biometria, Alertas (sino) e Conta
+  Google (ícone na app bar do Plantel).
+  Atividade mostra o acelerômetro do sensor: intensidade do movimento por
+  minuto no dia escolhido e as leituras x, y, z dos últimos 10 minutos
+  recebidos. Pulos e voltas esperam o classificador de movimento.
+  Biometria mostra frequência cardíaca e temperatura quando o sensor tiver
+  esses módulos (hr e temp_s no config.txt); lactato não tem sensor.
 
 Sem conta conectada o app abre em "Conta Google": Conectar conta Google
 (abre o Chrome na máquina do servidor) > "Usar como cavalo" no rastreador.
@@ -56,6 +60,11 @@ API (lista completa e teste pelo navegador em http://localhost:8000/docs):
   Sensor
     POST              /api/v1/device/upload    (chamado pelo ESP32)
     GET               /api/v1/sensors/
+    GET               /api/v1/horses/{id}/sensor/series?kind=&from=&to=
+                      resumo por minuto (mín, máx, média). kind: A = movimento
+                      em g, H = bpm, T = °C; from/to em epoch (s)
+    GET               /api/v1/horses/{id}/sensor/raw?from=&to=&points=
+                      acelerômetro x, y, z em g, janela de até 1 h
 
 Nutrição (plano semanal: uma refeição por cavalo, dia e turno):
   Gravar ou alterar:
@@ -84,13 +93,19 @@ Sensor no cavalo (ESP32, firmware em E:\documents\Arduino\CavaloMonitor):
   Configuração: /config.txt na raiz do cartão, lido quando o ESP32 liga
   (modelo em config.exemplo.txt, na pasta do firmware):
     wifi_ssid, wifi_pass   rede Wi-Fi
-    server                 http://<ip do servidor>:8000
+    server                 endereço do app, como no navegador:
+                           https://matheusmatosk.com/cavalo  ou, com o
+                           servidor na mesma rede, http://<ip>:8000
     key                    igual a SENSOR_KEY do backend/.env
     upload_s               contato com o servidor, em segundos (600 = 10 min)
-    accel_hz               leituras por segundo do acelerômetro: 10, 20, 25,
-                           50 ou 100
+    accel_hz               leituras por segundo do acelerômetro: 10, 20, 25
+                           ou 50
     temp_s, hr             temperatura a cada N s e frequência cardíaca (0 =
                            sem sensor)
+
+  Mudar uma chave sem tirar o cartão: mande a linha chave=valor pela serial
+  (115200) nos 3 s depois de ligar ou resetar o ESP32. A serial também mostra
+  cada gravação no cartão e a resposta do servidor a cada envio.
 
   Envio:
     POST /api/v1/device/upload?boot=<id do boot>&uptime_ms=<ms desde o boot>

@@ -303,3 +303,55 @@ def test_relogio_emenda_contatos_e_tira_a_deriva():
         s.query(SensorBlock).filter_by(horse_id=horse_id).delete()
         s.delete(s.get(Horse, horse_id))
         s.commit()
+
+
+# --- Leitura -----------------------------------------------------------------
+def test_leitura_series_e_raw(auth):
+    r = client.post('/api/v1/horses/', json={'name': 'Leitura'}, headers=auth)
+    horse_id = r.json()['id']
+    mac = 'aabbccddee77'
+    client.patch(
+        f'/api/v1/horses/{horse_id}', json={'sensor_id': mac}, headers=auth
+    )
+    # 2 min: o 1º parado (1 g em X), o 2º com 2 g em Z (intensidade 1)
+    body = header(9) + b''.join([
+        accel(60_000, 60_000),
+        record('A', 120_000, 60_000, [0, 0, 8192] * 3000, ch=3),
+        record('T', 120_000, 0, [3750]),
+    ])
+    assert send(body, 9, 120_000, mac=mac).json()['stored'] == 3
+    now = int(time.time())
+    url = f'/api/v1/horses/{horse_id}/sensor'
+
+    r = client.get(f'{url}/series', params={'from': now - 300}, headers=auth)
+    pts = r.json()['points']
+    assert [round(p['avg'], 3) for p in pts] == [0, 1]
+    assert [p['dur'] for p in pts] == [60, 60]
+    assert abs(pts[0]['ts'] - (now - 120)) <= 2
+    assert abs(r.json()['last_ts'] - now) <= 2
+    # fora da janela não vem ponto, mas last_ts continua
+    r = client.get(f'{url}/series', params={'from': now + 60}, headers=auth)
+    assert r.json()['points'] == []
+    assert r.json()['last_ts']
+    r = client.get(f'{url}/series', params={'kind': 'T'}, headers=auth)
+    assert [p['avg'] for p in r.json()['points']] == [37.5]
+    r = client.get(f'{url}/series', params={'kind': 'H'}, headers=auth)
+    assert r.json() == {'points': [], 'last_ts': None}
+
+    # raw: janela de 4 min; só os intervalos com dados aparecem
+    last = pts[1]['ts'] + 60
+    r = client.get(
+        f'{url}/raw',
+        params={'from': last - 180, 'to': last + 60, 'points': 10},
+        headers=auth,
+    )
+    raw = r.json()
+    assert (raw['x'][0], raw['z'][0]) == (1, 0)
+    assert (raw['x'][-1], raw['z'][-1]) == (0, 2)
+    assert len(raw['t']) in {5, 6}  # 2 min de dados em intervalos de 24 s
+
+    assert client.get(f'{url}/series').status_code == 401
+    r = client.get(f'{url}/raw', params={'from': 0, 'to': 7200}, headers=auth)
+    assert r.status_code == 422
+    r = client.get('/api/v1/horses/99999/sensor/series', headers=auth)
+    assert r.status_code == 404

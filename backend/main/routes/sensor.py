@@ -1,6 +1,7 @@
 import hmac
 import logging
 import time
+from typing import Literal, Optional
 
 from fastapi import (
     APIRouter,
@@ -12,12 +13,12 @@ from fastapi import (
     status,
 )
 from fastapi.concurrency import run_in_threadpool
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from main import sensor
 from main.database import get_session
-from main.models import Horse
+from main.models import Horse, SensorBlock
 from main.schemas import norm_sensor_id
 from main.security import get_current_user
 from main.settings import settings
@@ -31,6 +32,14 @@ sensors_router = APIRouter(
     tags=['sensors'],
     dependencies=[Depends(get_current_user)],
 )
+readings_router = APIRouter(
+    prefix='/api/v1/horses/{horse_id}/sensor',
+    tags=['sensors'],
+    dependencies=[Depends(get_current_user)],
+)
+
+# Janela máxima de /raw: 1 h a 50 Hz são 180 mil leituras para descompactar.
+RAW_MAX_S = 3600
 
 
 def get_sensor_id(
@@ -125,3 +134,81 @@ def list_sensors(session: Session = Depends(get_session)):
             'contact': sensor.seen.get(sensor_id),
         })
     return {'sensors': sensors}
+
+
+def _check_horse(session, horse_id):
+    if not session.get(Horse, horse_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, 'Cavalo não encontrado')
+
+
+@readings_router.get('/series')
+def series(
+    horse_id: int,
+    kind: Literal['A', 'H', 'T'] = Query('A', description='sinal'),
+    from_: int = Query(0, alias='from', description='epoch (s)'),
+    to: Optional[int] = Query(None, description='epoch (s)'),
+    session: Session = Depends(get_session),
+):
+    """Resumo de cada bloco (~1 min) do sinal: mínimo, máximo e média.
+
+    A: intensidade do movimento em g (0 = parado); H: bpm; T: °C.
+    `last_ts` é o fim do último bloco do sinal, dentro ou fora da janela.
+    """
+    _check_horse(session, horse_id)
+    own = (SensorBlock.horse_id == horse_id, SensorBlock.kind == kind)
+    q = select(
+        SensorBlock.ts_ms,
+        SensorBlock.dur_ms,
+        SensorBlock.v_min,
+        SensorBlock.v_max,
+        SensorBlock.v_avg,
+    ).where(
+        *own, SensorBlock.ts_ms >= from_ * 1000, SensorBlock.v_avg.is_not(None)
+    )
+    if to is not None:
+        q = q.where(SensorBlock.ts_ms < to * 1000)
+    last = session.scalar(
+        select(func.max(SensorBlock.ts_ms + SensorBlock.dur_ms)).where(*own)
+    )
+    return {
+        'points': [
+            {
+                'ts': r.ts_ms // 1000,
+                'dur': r.dur_ms // 1000,
+                'min': r.v_min,
+                'max': r.v_max,
+                'avg': r.v_avg,
+            }
+            for r in session.execute(q.order_by(SensorBlock.ts_ms))
+        ],
+        'last_ts': last // 1000 if last else None,
+    }
+
+
+@readings_router.get('/raw')
+def raw(
+    horse_id: int,
+    from_: int = Query(alias='from', description='epoch (s)'),
+    to: int = Query(description='epoch (s)'),
+    points: int = Query(600, ge=10, le=2000),
+    session: Session = Depends(get_session),
+):
+    """Leituras do acelerômetro (x, y, z em g) numa janela de até 1 h.
+
+    A janela é cortada em `points` intervalos e cada um traz a média das
+    leituras; `t` é em epoch ms.
+    """
+    _check_horse(session, horse_id)
+    if not 0 < to - from_ <= RAW_MAX_S:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            f'Janela de 1 a {RAW_MAX_S} s',
+        )
+    q = select(SensorBlock).where(
+        SensorBlock.horse_id == horse_id,
+        SensorBlock.kind == 'A',
+        SensorBlock.ts_ms < to * 1000,
+        SensorBlock.ts_ms + SensorBlock.dur_ms > from_ * 1000,
+    )
+    blocks = session.scalars(q.order_by(SensorBlock.ts_ms)).all()
+    return sensor.buckets(blocks, from_ * 1000, to * 1000, points)

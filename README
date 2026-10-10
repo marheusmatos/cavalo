@@ -100,8 +100,11 @@ Sensor no cavalo (ESP32, firmware em E:\documents\Arduino\CavaloMonitor):
     upload_s               contato com o servidor, em segundos (600 = 10 min)
     accel_hz               leituras por segundo do acelerômetro: 10, 20, 25
                            ou 50
-    temp_s, hr             temperatura a cada N s e frequência cardíaca (0 =
-                           sem sensor)
+    temp_s                 temperatura a cada N s (0 = sem sensor). DS18B20
+                           ou DHT11/DHT22 com o DATA no G4; o firmware
+                           descobre qual é no boot
+    hr                     1 = frequência cardíaca pelo MAX30102 (mesmo I2C
+                           do MPU6050: SDA=G21, SCL=G22); 0 = sem sensor
 
   Mudar uma chave sem tirar o cartão: mande a linha chave=valor pela serial
   (115200) nos 3 s depois de ligar ou resetar o ESP32. A serial também mostra

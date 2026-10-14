@@ -30,7 +30,23 @@
   <form slot="content" id="cadForm" method="dialog" class="dialog-form">
     <md-outlined-text-field id="cadNome" label="Nome"></md-outlined-text-field>
     <md-outlined-text-field id="cadRaca" label="Raça"></md-outlined-text-field>
-    <md-outlined-text-field id="cadPeso" label="Peso (kg)" type="number" step="1" min="1"></md-outlined-text-field>
+    <div class="pair">
+      <md-outlined-select id="cadSexo" label="Sexo"></md-outlined-select>
+      <md-outlined-text-field id="cadNasc" label="Nascimento" type="date"></md-outlined-text-field>
+    </div>
+    <md-outlined-text-field id="cadPelagem" label="Pelagem" maxlength="50"></md-outlined-text-field>
+
+    <div class="label muted">Dimensões</div>
+    <div class="pair">
+      <md-outlined-text-field id="cadPeso" label="Peso (kg)" type="number" step="1" min="1"></md-outlined-text-field>
+      <md-outlined-text-field id="cadAltura" label="Altura na cernelha (cm)" type="number" step="1" min="1"></md-outlined-text-field>
+    </div>
+    <div class="pair">
+      <md-outlined-text-field id="cadTorax" label="Perímetro torácico (cm)" type="number" step="1" min="1"></md-outlined-text-field>
+      <md-outlined-text-field id="cadCorpo" label="Comprimento do corpo (cm)" type="number" step="1" min="1"></md-outlined-text-field>
+    </div>
+    <md-outlined-text-field id="cadCanela" label="Perímetro da canela (cm)" type="number" step="0.5" min="1"></md-outlined-text-field>
+    <md-outlined-text-field id="cadObs" label="Marcas e observações" type="textarea" rows="2" maxlength="500"></md-outlined-text-field>
 
     <div class="label muted">Tag de localização</div>
     <md-outlined-select id="cadTag" label="Rastreador (Find Hub)"></md-outlined-select>

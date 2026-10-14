@@ -218,6 +218,51 @@ function bar({ title = '', back = null, actions = [] }) {
 const SHOE = '<svg width="52" height="52" viewBox="0 0 38 38" fill="none" stroke="rgba(255,255,255,.10)" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M11 6.5C8 9 6.5 13 6.5 18c0 8 5.6 13.5 12.5 13.5S31.5 26 31.5 18c0-5-1.5-9-4.5-11.5"/></svg>';
 const GRADS = ['#2f2622', '#2b2a24', '#2f2320', '#262a26', '#262a2e', '#2a2622'];
 const subtitle = (h) => h.breed || (h.weight_kg ? `${num(h.weight_kg, 0)} kg` : 'Raça não informada');
+const SEX = { M: 'Macho', F: 'Fêmea', C: 'Castrado' };
+// Campos do cadastro: [id do input, campo da API, é número].
+const CAD_FIELDS = [
+  ['cadRaca', 'breed'], ['cadSexo', 'sex'], ['cadNasc', 'birth_date'], ['cadPelagem', 'coat'],
+  ['cadPeso', 'weight_kg', true], ['cadAltura', 'height_cm', true], ['cadTorax', 'girth_cm', true],
+  ['cadCorpo', 'length_cm', true], ['cadCanela', 'cannon_cm', true], ['cadObs', 'notes'],
+];
+
+function age(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const now = new Date();
+  let months = (now.getFullYear() - y) * 12 + now.getMonth() + 1 - m - (now.getDate() < d ? 1 : 0);
+  months = Math.max(months, 0);
+  const years = Math.floor(months / 12);
+  return years ? `${years} ${years === 1 ? 'ano' : 'anos'}` : `${months} ${months === 1 ? 'mês' : 'meses'}`;
+}
+
+// Ficha do cavalo: só os campos preenchidos, como [rótulo, valor].
+function horseFacts(h) {
+  const cm = (v) => `${num(v, 1)} cm`;
+  return [
+    ['Sexo', SEX[h.sex]],
+    ['Idade', h.birth_date && age(h.birth_date)],
+    ['Pelagem', h.coat],
+    ['Altura na cernelha', h.height_cm && `${num(h.height_cm / 100)} m`],
+    ['Perímetro torácico', h.girth_cm && cm(h.girth_cm)],
+    ['Comprimento do corpo', h.length_cm && cm(h.length_cm)],
+    ['Perímetro da canela', h.cannon_cm && cm(h.cannon_cm)],
+    ['Marcas e observações', h.notes],
+  ].filter(([, v]) => v);
+}
+
+// Limites de alerta do sensor: campo do diálogo -> chave da API.
+const LIM_FIELDS = { limBpmMin: 'bpm_min', limBpmMax: 'bpm_max', limTempMin: 'temp_min', limTempMax: 'temp_max', limMovMax: 'mov_max' };
+function limitsSummary(l) {
+  const range = (lo, hi, unit, d = 0) => (lo == null && hi == null ? null
+    : lo == null ? `até ${num(hi, d)} ${unit}` : hi == null ? `a partir de ${num(lo, d)} ${unit}` : `${num(lo, d)}–${num(hi, d)} ${unit}`);
+  const parts = [
+    ['Batimentos', range(l.bpm_min, l.bpm_max, 'bpm')],
+    ['Temperatura', range(l.temp_min, l.temp_max, '°C', 1)],
+    ['Movimento', l.mov_max == null ? null : `até ${num(l.mov_max)} g`],
+  ].filter(([, v]) => v).map(([k, v]) => `${k} ${v}`);
+  return parts.length ? parts.join(' · ') : 'Nenhum limite: o sensor não alerta';
+}
+
 const DAYS = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 const SHIFTS = {
   M: { name: 'Manhã', bg: '#E9A48C', fg: '#3a1207', time: '06:30' },
@@ -376,8 +421,8 @@ const pages = {
     async function open(preTag = '', preName = '') {
       $('cadNome').value = preName;
       $('cadNome').error = false;
-      $('cadRaca').value = '';
-      $('cadPeso').value = '';
+      for (const [id] of CAD_FIELDS) $(id).value = '';
+      await fillSelect($('cadSexo'), [option('', 'Não informado', true), ...Object.entries(SEX).map(([v, t]) => option(v, t))]);
       await fillSelect(clone, [
         ...horses.map((h) => option(h.id, h.name, String(h.id) === defaultClone)),
         option('manual', 'Definir manualmente', defaultClone === 'manual'),
@@ -407,12 +452,10 @@ const pages = {
         return;
       }
       const manual = cloneValue() === 'manual';
-      const body = {
-        name,
-        breed: $('cadRaca').value.trim() || null,
-        weight_kg: Number($('cadPeso').value) || null,
-        tag_id: tag.value || null,
-      };
+      const body = { name, tag_id: tag.value || null };
+      for (const [id, field, isNum] of CAD_FIELDS) {
+        body[field] = (isNum ? Number($(id).value) : $(id).value.trim()) || null;
+      }
       if (manual) body.fence_radius_m = Number($('cadRaio').value);
       const horse = await api(`api/v1/horses/${manual ? '' : `?clone_from=${cloneValue()}`}`, { method: 'POST', json: body });
       dlg.close();
@@ -436,6 +479,38 @@ const pages = {
     $('hName').textContent = horse.name;
     $('hBreed').textContent = horse.breed || 'Raça não informada';
     $('hWeight').textContent = horse.weight_kg ? `${num(horse.weight_kg, 0)} kg` : '';
+    const facts = horseFacts(horse);
+    $('hFacts').hidden = !facts.length;
+    $('hFacts').replaceChildren(...facts.map(([label, value]) => {
+      const el = document.createElement('div');
+      el.className = label.startsWith('Marcas') ? 'wide' : '';
+      el.innerHTML = '<span class="muted"></span><b></b>';
+      el.querySelector('span').textContent = label;
+      el.querySelector('b').textContent = value;
+      return el;
+    }));
+    const limUrl = `api/v1/horses/${horse.id}/sensor/alerts`;
+    let limits = await api(limUrl);
+    $('limitsSum').textContent = limitsSummary(limits);
+    const limDlg = $('limDialog');
+    $('cLimits').addEventListener('click', () => {
+      for (const [id, key] of Object.entries(LIM_FIELDS)) $(id).value = limits[key] ?? '';
+      limDlg.show();
+    });
+    $('limCancel').addEventListener('click', () => limDlg.close());
+    $('limSave').addEventListener('click', async () => {
+      const body = {};
+      for (const [id, key] of Object.entries(LIM_FIELDS)) body[key] = $(id).value === '' ? null : Number($(id).value);
+      try {
+        limits = await api(limUrl, { method: 'PUT', json: body });
+      } catch (e) {
+        toast(e.message);
+        return;
+      }
+      $('limitsSum').textContent = limitsSummary(limits);
+      limDlg.close();
+      toast(horse.sensor_id ? 'Limites salvos. O sensor recebe no próximo envio.' : 'Limites salvos. Vincule um sensor para valerem.');
+    });
     for (const [id, page] of [['cLoc', 'localizacao'], ['cBio', 'biometria'], ['cAtiv', 'atividade'], ['cNutri', 'nutricao']]) {
       $(id).href = `#/${page}/${horse.id}`;
     }

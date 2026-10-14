@@ -10,16 +10,22 @@ from fastapi import (
     HTTPException,
     Query,
     Request,
+    Response,
     status,
 )
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from main import sensor
+from main import alerts, sensor
 from main.database import get_session
 from main.models import Horse, SensorBlock
-from main.schemas import norm_sensor_id
+from main.schemas import (
+    AlertLimits,
+    AlertLimitsPublic,
+    DeviceAlert,
+    norm_sensor_id,
+)
 from main.security import get_current_user
 from main.settings import settings
 
@@ -119,6 +125,46 @@ async def upload(
     )
 
 
+def _bound_horse(session, sensor_id):
+    horse = session.scalars(
+        select(Horse).where(Horse.sensor_id == sensor_id)
+    ).first()
+    if not horse:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, 'Sensor não vinculado a um cavalo'
+        )
+    return horse
+
+
+@device_router.get('/alerts')
+def device_limits(
+    ver: int = Query(0, ge=0, description='versao= do /alertas.txt do cartão'),
+    sensor_id: str = Depends(get_sensor_id),
+    session: Session = Depends(get_session),
+):
+    """/alertas.txt do cartão. 204 se o ESP32 já tem esta versão."""
+    horse = _bound_horse(session, sensor_id)
+    if horse.alert_ver == ver:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return Response(alerts.alert_file(horse), media_type='text/plain')
+
+
+@device_router.post('/alert')
+def device_alert(
+    alert: DeviceAlert,
+    sensor_id: str = Depends(get_sensor_id),
+    session: Session = Depends(get_session),
+):
+    """O ESP32 viu uma leitura fora dos limites: registra e avisa o vet."""
+    horse = _bound_horse(session, sensor_id)
+    log.warning(
+        'alerta de %s: %s',
+        horse.name,
+        alerts.describe(alert.kind, alert.value, alert.limit),
+    )
+    return alerts.record(session, horse, alert)
+
+
 @sensors_router.get('/')
 def list_sensors(session: Session = Depends(get_session)):
     """Sensores vinculados e os que fizeram contato desde que o app subiu."""
@@ -212,3 +258,24 @@ def raw(
     )
     blocks = session.scalars(q.order_by(SensorBlock.ts_ms)).all()
     return sensor.buckets(blocks, from_ * 1000, to * 1000, points)
+
+
+@readings_router.get('/alerts', response_model=AlertLimitsPublic)
+def get_limits(horse_id: int, session: Session = Depends(get_session)):
+    """Limites de alerta do cavalo (None = sem limite)."""
+    _check_horse(session, horse_id)
+    return alerts.limits(session.get(Horse, horse_id))
+
+
+@readings_router.put('/alerts', response_model=AlertLimitsPublic)
+def put_limits(
+    horse_id: int,
+    data: AlertLimits,
+    session: Session = Depends(get_session),
+):
+    """Troca os limites; o ESP32 baixa no próximo contato com o servidor."""
+    _check_horse(session, horse_id)
+    horse = session.get(Horse, horse_id)
+    alerts.set_limits(horse, data.model_dump())
+    session.commit()
+    return alerts.limits(horse)

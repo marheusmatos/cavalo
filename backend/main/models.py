@@ -1,6 +1,8 @@
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     Column,
+    Date,
     Float,
     ForeignKey,
     Index,
@@ -20,6 +22,16 @@ class Horse(Base):
     name = Column(String(100), nullable=False)
     breed = Column(String(100), nullable=True)
     weight_kg = Column(Float, nullable=True)
+    # Características: sexo M(acho), F(êmea) ou C(astrado).
+    sex = Column(String(1), nullable=True)
+    birth_date = Column(Date, nullable=True)
+    coat = Column(String(50), nullable=True)  # pelagem
+    notes = Column(String(500), nullable=True)  # marcas e observações
+    # Dimensões (cm): cernelha, perímetro torácico, corpo e canela.
+    height_cm = Column(Float, nullable=True)
+    girth_cm = Column(Float, nullable=True)
+    length_cm = Column(Float, nullable=True)
+    cannon_cm = Column(Float, nullable=True)
     # canonic id do rastreador no Find Hub; 'demo' = tag simulada.
     tag_id = Column(String(200), nullable=True)
     # MAC do ESP32 (12 hex) que manda biometria/atividade deste cavalo.
@@ -28,6 +40,15 @@ class Horse(Base):
     fence_lat = Column(Float, nullable=True)
     fence_lon = Column(Float, nullable=True)
     fence_radius_m = Column(Float, nullable=True)
+    # Limites de alerta do sensor (None = sem limite): bpm, °C e intensidade
+    # do movimento (g, média de 10 s). alert_ver muda a cada alteração: o
+    # ESP32 compara com a do /alertas.txt do cartão e baixa de novo.
+    alert_bpm_min = Column(Float, nullable=True)
+    alert_bpm_max = Column(Float, nullable=True)
+    alert_temp_min = Column(Float, nullable=True)
+    alert_temp_max = Column(Float, nullable=True)
+    alert_mov_max = Column(Float, nullable=True)
+    alert_ver = Column(Integer, nullable=False, default=0, server_default='0')
 
     def __repr__(self):
         return f"<Horse(id={self.id}, name='{self.name}')>"
@@ -98,3 +119,19 @@ class Meal(Base):
     x = Column(Integer, nullable=False)
     y = Column(Integer, nullable=False)
     z = Column(Integer, nullable=False)
+
+
+class SensorAlert(Base):
+    """Um alerta que o ESP32 disparou (leitura fora dos limites do cavalo)."""
+
+    __tablename__ = 'sensor_alerts'
+    __table_args__ = (Index('ix_sensor_alerts_horse_ts', 'horse_id', 'ts'),)
+
+    id = Column(Integer, primary_key=True)
+    horse_id = Column(Integer, ForeignKey('horses.id'), nullable=False)
+    ts = Column(Integer, nullable=False)  # epoch (s) em que chegou
+    kind = Column(String(1), nullable=False)  # H (bpm), T (°C), A (movimento)
+    value = Column(Float, nullable=False)
+    limit = Column(Float, nullable=False)  # o limite que foi passado
+    email = Column(String(254), nullable=True)  # veterinário avisado
+    emailed = Column(Boolean, nullable=False, default=False)

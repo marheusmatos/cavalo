@@ -6,9 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from main import alerts as sensor_alerts
 from main import tracking
 from main.database import get_session
-from main.models import Horse, Meal, Position, SensorBlock
+from main.models import Horse, Meal, Position, SensorAlert, SensorBlock
 from main.schemas import (
     HorseList,
     HorsePublic,
@@ -278,5 +279,24 @@ def list_alerts(session: Session = Depends(get_session)):
                 pos.ts,
                 'localizacao',
             )
+    # Sensor: o último alerta de cada sinal nas últimas 24 h.
+    q = (
+        select(SensorAlert, Horse)
+        .join(Horse, Horse.id == SensorAlert.horse_id)
+        .where(SensorAlert.ts > now - 24 * 3600)
+        .order_by(SensorAlert.ts.desc())
+    )
+    shown = set()
+    for row, horse in session.execute(q):
+        if (horse.id, row.kind) in shown:
+            continue
+        shown.add((horse.id, row.kind))
+        add(
+            horse,
+            'crit',
+            sensor_alerts.describe(row.kind, row.value, row.limit),
+            row.ts,
+            'atividade' if row.kind == 'A' else 'biometria',
+        )
     alerts.sort(key=lambda a: a['ts'] or 0, reverse=True)
     return {'alerts': alerts}

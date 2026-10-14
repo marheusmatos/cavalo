@@ -67,6 +67,17 @@ class Settings(BaseSettings):
     # Um contato normal (10 min de acelerômetro a 50 Hz) tem ~180 kB.
     SENSOR_MAX_UPLOAD_BYTES: int = 512_000
 
+    # --- E-mail de alerta ao veterinário (SMTP) ----------------------------
+    # Gmail: smtp.gmail.com, 587, a conta e uma "senha de app" (não a senha
+    # normal). Sem SMTP_HOST o alerta fica só no portal.
+    SMTP_HOST: str = ''
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ''
+    SMTP_PASSWORD: str = ''
+    SMTP_FROM: str = ''  # vazio = SMTP_USER
+    # Mesmo cavalo e mesmo sinal: no máximo um e-mail neste intervalo.
+    ALERT_EMAIL_INTERVAL_S: int = 1800
+
     @field_validator('DATABASE_URL')
     @classmethod
     def _resolve_sqlite_path(cls, value: str) -> str:

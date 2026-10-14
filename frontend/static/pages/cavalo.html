@@ -12,6 +12,17 @@
     </div>
   </div>
 
+  <div id="hFacts" class="card facts" hidden></div>
+
+  <button type="button" class="card card--tap limits" id="cLimits">
+    <span class="material-symbols-outlined" style="color:var(--status-crit)">notifications_active</span>
+    <span style="flex:1;min-width:0">
+      <b>Limites de alerta</b>
+      <span id="limitsSum" class="muted"></span>
+    </span>
+    <span class="material-symbols-outlined muted">chevron_right</span>
+  </button>
+
   <div class="detail-grid">
     <a class="card card--tap tile" id="cLoc">
       <div class="tile__head" style="color:var(--md-sys-color-primary)"><span class="material-symbols-outlined">location_on</span><span>Localização</span></div>
@@ -48,3 +59,27 @@
     </a>
   </div>
 </section>
+
+<md-dialog id="limDialog">
+  <div slot="headline">Limites de alerta</div>
+  <form slot="content" method="dialog" class="dialog-form">
+    <div class="muted" style="font-size:13px">Fora destes limites o LED do sensor pisca sem parar e o veterinário recebe um e-mail. Deixe em branco para não alertar.</div>
+    <div class="label muted">Batimentos (bpm)</div>
+    <div class="pair">
+      <md-outlined-text-field id="limBpmMin" label="Mínimo" type="number" step="1"></md-outlined-text-field>
+      <md-outlined-text-field id="limBpmMax" label="Máximo" type="number" step="1"></md-outlined-text-field>
+    </div>
+    <div class="label muted">Temperatura (°C)</div>
+    <div class="pair">
+      <md-outlined-text-field id="limTempMin" label="Mínima" type="number" step="0.1"></md-outlined-text-field>
+      <md-outlined-text-field id="limTempMax" label="Máxima" type="number" step="0.1"></md-outlined-text-field>
+    </div>
+    <div class="label muted">Movimento</div>
+    <md-outlined-text-field id="limMovMax" label="Intensidade máxima (g, média de 10 s)" type="number" step="0.1"></md-outlined-text-field>
+    <div class="muted" style="font-size:12px">O sensor recebe os limites novos no próximo envio de dados (até 10 minutos).</div>
+  </form>
+  <div slot="actions">
+    <md-text-button id="limCancel">Cancelar</md-text-button>
+    <md-filled-button id="limSave">Salvar</md-filled-button>
+  </div>
+</md-dialog>

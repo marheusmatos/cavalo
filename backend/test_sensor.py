@@ -366,3 +366,72 @@ def test_estaticos_sao_revalidados():
     assert index.headers['cache-control'] == 'no-cache'
     assert 'static/app.js?v=' in index.text
     assert 'static/theme.css?v=' in index.text
+
+
+# --- Alertas -----------------------------------------------------------------
+def test_limites_de_alerta_vao_para_o_cartao_e_alerta_manda_email(
+    auth, monkeypatch
+):
+    mac = '0a0b0c0d0e0f'
+    horse = client.post(
+        '/api/v1/horses/', headers=auth, json={'name': 'Alertado', 'sensor_id': mac}
+    ).json()
+    url = f'/api/v1/horses/{horse["id"]}/sensor/alerts'
+    dev = {'X-Sensor-Id': mac, 'X-Sensor-Key': settings.SENSOR_KEY}
+
+    assert client.get(url, headers=auth).json() == {
+        'bpm_min': None, 'bpm_max': None, 'temp_min': None,
+        'temp_max': None, 'mov_max': None, 'ver': 0,
+    }
+    # Sem limites ainda: o cartão (versao 0) já está em dia.
+    r = client.get('/api/v1/device/alerts', params={'ver': 0}, headers=dev)
+    assert r.status_code == 204
+
+    bad = client.put(url, headers=auth, json={'bpm_min': 80, 'bpm_max': 40})
+    assert bad.status_code == 422
+    saved = client.put(
+        url, headers=auth, json={'bpm_min': 25, 'bpm_max': 60, 'temp_max': 39.5}
+    ).json()
+    assert saved['ver'] > 0
+    assert (saved['bpm_max'], saved['mov_max']) == (60, None)
+
+    r = client.get('/api/v1/device/alerts', params={'ver': 0}, headers=dev)
+    assert r.status_code == 200
+    lines = r.text.splitlines()
+    assert f'versao={saved["ver"]}' in lines
+    assert {'bpm_min=25', 'bpm_max=60', 'temp_max=39.5'} <= set(lines)
+    assert not any(line.startswith('mov_max') for line in lines)
+    r = client.get(
+        '/api/v1/device/alerts', params={'ver': saved['ver']}, headers=dev
+    )
+    assert r.status_code == 204
+    # Salvar de novo (mesmo no mesmo segundo) muda a versão.
+    again = client.put(url, headers=auth, json={'bpm_max': 60}).json()
+    assert again['ver'] > saved['ver']
+
+    sent = []
+    monkeypatch.setattr(
+        'main.alerts._send_email', lambda *a: sent.append(a) or True
+    )
+    alert = {'kind': 'H', 'value': 72.4, 'limit': 60, 'vet': 'vet@exemplo.com'}
+    r = client.post('/api/v1/device/alert', json=alert, headers=dev)
+    assert (r.status_code, r.json()) == (200, {'emailed': True})
+    to, subject, text = sent[0]
+    assert to == 'vet@exemplo.com'
+    assert 'Alertado' in subject
+    assert 'Batimentos 72 bpm, acima do máximo de 60 bpm' in text
+    # Logo depois, o mesmo sinal não manda outro e-mail.
+    r = client.post('/api/v1/device/alert', json=alert, headers=dev)
+    assert r.json() == {'emailed': False}
+    assert len(sent) == 1
+
+    bad = {**alert, 'vet': 'nao-e-email'}
+    assert client.post('/api/v1/device/alert', json=bad, headers=dev).status_code == 422
+    other = {'X-Sensor-Id': 'ffeeddccbbaa', 'X-Sensor-Key': settings.SENSOR_KEY}
+    assert client.post('/api/v1/device/alert', json=alert, headers=other).status_code == 409
+
+    bell = client.get('/api/v1/alerts/', headers=auth).json()['alerts']
+    mine = [a for a in bell if a['horse_id'] == horse['id']]
+    assert len(mine) == 1  # os dois alertas de bpm viram um item
+    assert mine[0]['status'] == 'crit'
+    assert mine[0]['to'] == 'biometria'

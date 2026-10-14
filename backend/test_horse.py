@@ -228,11 +228,22 @@ def test_nutricao_recorrencia_e_clonagem(auth):
             'name': 'Quíron',
             'breed': 'Brasileiro de Hipismo',
             'weight_kg': 540,
+            'sex': 'C',
+            'birth_date': '2015-09-20',
+            'coat': 'Castanho',
+            'height_cm': 168,
+            'girth_cm': 195.5,
             'fence_lat': -21.95,
             'fence_lon': -47.95,
             'fence_radius_m': 120,
         },
     ).json()
+    assert (src['sex'], src['birth_date']) == ('C', '2015-09-20')
+    assert (src['coat'], src['height_cm']) == ('Castanho', 168)
+    assert (src['girth_cm'], src['cannon_cm']) == (195.5, None)
+    for bad in ({'sex': 'X'}, {'height_cm': 0}, {'birth_date': '2999-01-01'}):
+        r = client.post(f'{base}/', headers=auth, json={'name': 'Z', **bad})
+        assert r.status_code == 422
     meals = f'{base}/{src["id"]}/meals'
     manha = {'shift': 'M', 'time': '06:30', 'kg': 3, 'x': 40, 'y': 35, 'z': 25}
 
@@ -264,6 +275,7 @@ def test_nutricao_recorrencia_e_clonagem(auth):
     ).json()
     assert (clone['fence_lat'], clone['fence_radius_m']) == (-21.95, 120)
     assert clone['breed'] is None
+    assert (clone['sex'], clone['height_cm']) == (None, None)
     assert clone['weight_kg'] == 510
     clone_meals = client.get(f'{base}/{clone["id"]}/meals', headers=auth)
     assert len(clone_meals.json()['meals']) == 11

@@ -14,6 +14,7 @@ from email.message import EmailMessage
 
 from sqlalchemy import select
 
+from main import tracking
 from main.models import SensorAlert
 from main.settings import settings
 
@@ -32,6 +33,7 @@ KINDS = {
     'H': ('Batimentos', 'bpm', 0),
     'T': ('Temperatura', '°C', 1),
     'A': ('Intensidade do movimento', 'g', 2),
+    'C': ('Cerca virtual', 'm', 0),
 }
 
 
@@ -61,7 +63,18 @@ def alert_file(horse):
     return '\n'.join(lines) + '\n'
 
 
+def fence_out(session, horse):
+    """(distância do centro, raio) em m se a última posição está fora da cerca."""
+    pos = tracking.last_position(session, horse.id)
+    if pos is None or tracking.inside_fence(horse, pos) is not False:
+        return None
+    dist = tracking.haversine_m(horse.fence_lat, horse.fence_lon, pos.lat, pos.lon)
+    return round(dist), round(horse.fence_radius_m)
+
+
 def describe(kind, value, limit):
+    if kind == 'C':
+        return f'Fora da cerca virtual: {value:.0f} m do centro (raio {limit:g} m)'
     name, unit, digits = KINDS[kind]
     side = 'acima do máximo' if value > limit else 'abaixo do mínimo'
     return f'{name} {value:.{digits}f} {unit}, {side} de {limit:g} {unit}'

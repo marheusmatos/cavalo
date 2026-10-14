@@ -142,11 +142,19 @@ def device_limits(
     sensor_id: str = Depends(get_sensor_id),
     session: Session = Depends(get_session),
 ):
-    """/alertas.txt do cartão. 204 se o ESP32 já tem esta versão."""
+    """/alertas.txt do cartão. 204 se o ESP32 já tem esta versão.
+
+    Fora da cerca (pela tag), o cabeçalho X-Cerca traz "distância/raio" em m:
+    o ESP32 dispara o alerta como se fosse uma leitura dele.
+    """
     horse = _bound_horse(session, sensor_id)
+    out = alerts.fence_out(session, horse)
+    headers = {'X-Cerca': f'{out[0]}/{out[1]}'} if out else None
     if horse.alert_ver == ver:
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
-    return Response(alerts.alert_file(horse), media_type='text/plain')
+        return Response(status_code=status.HTTP_204_NO_CONTENT, headers=headers)
+    return Response(
+        alerts.alert_file(horse), media_type='text/plain', headers=headers
+    )
 
 
 @device_router.post('/alert')

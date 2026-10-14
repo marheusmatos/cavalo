@@ -22,10 +22,10 @@ import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import select  # noqa: E402
 
-from main import sensor  # noqa: E402
+from main import alerts, sensor  # noqa: E402
 from main.app import app  # noqa: E402
 from main.database import Base, SessionLocal, engine  # noqa: E402
-from main.models import Horse, SensorBlock  # noqa: E402
+from main.models import Horse, Position, SensorBlock  # noqa: E402
 from main.settings import settings  # noqa: E402
 from sim_sensor import header, record  # noqa: E402
 
@@ -435,3 +435,37 @@ def test_limites_de_alerta_vao_para_o_cartao_e_alerta_manda_email(
     assert len(mine) == 1  # os dois alertas de bpm viram um item
     assert mine[0]['status'] == 'crit'
     assert mine[0]['to'] == 'biometria'
+
+
+def test_fora_da_cerca_vai_no_cabecalho_para_o_esp32(auth):
+    mac = '0a0b0c0d0e10'
+    horse = client.post(
+        '/api/v1/horses/',
+        headers=auth,
+        json={
+            'name': 'Cercado',
+            'sensor_id': mac,
+            'fence_lat': -22.0,
+            'fence_lon': -47.0,
+            'fence_radius_m': 150,
+        },
+    ).json()
+    dev = {'X-Sensor-Id': mac, 'X-Sensor-Key': settings.SENSOR_KEY}
+    r = client.get('/api/v1/device/alerts', params={'ver': 0}, headers=dev)
+    assert 'x-cerca' not in r.headers  # sem posição ainda
+
+    with SessionLocal() as s:
+        s.add(Position(horse_id=horse['id'], ts=int(time.time()), lat=-22.0, lon=-47.0, accuracy=10))
+        s.commit()
+    r = client.get('/api/v1/device/alerts', params={'ver': 0}, headers=dev)
+    assert 'x-cerca' not in r.headers  # dentro
+
+    with SessionLocal() as s:
+        # ~555 m ao norte do centro
+        s.add(Position(horse_id=horse['id'], ts=int(time.time()) + 1, lat=-21.995, lon=-47.0, accuracy=10))
+        s.commit()
+    r = client.get('/api/v1/device/alerts', params={'ver': 0}, headers=dev)
+    assert r.status_code == 204
+    dist, raio = map(int, r.headers['x-cerca'].split('/'))
+    assert (raio, 540 < dist < 570) == (150, True)
+    assert alerts.describe('C', dist, raio).startswith('Fora da cerca virtual')

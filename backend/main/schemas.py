@@ -137,7 +137,8 @@ class AlertLimitsPublic(AlertLimits):
 class DeviceAlert(BaseModel):
     """O que o ESP32 manda quando uma leitura sai dos limites."""
 
-    kind: Literal['H', 'T', 'A']  # bpm, °C, movimento (g)
+    # bpm, °C, movimento (g), C(erca): distância do centro (m) e o raio
+    kind: Literal['H', 'T', 'A', 'C']
     value: float
     limit: float
     vet: Optional[EmailStr] = None  # vet_email do config.txt do cartão

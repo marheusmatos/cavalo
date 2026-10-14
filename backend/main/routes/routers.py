@@ -283,7 +283,7 @@ def list_alerts(session: Session = Depends(get_session)):
     q = (
         select(SensorAlert, Horse)
         .join(Horse, Horse.id == SensorAlert.horse_id)
-        .where(SensorAlert.ts > now - 24 * 3600)
+        .where(SensorAlert.ts > now - 24 * 3600, SensorAlert.kind != 'C')
         .order_by(SensorAlert.ts.desc())
     )
     shown = set()

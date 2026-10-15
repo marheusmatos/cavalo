@@ -722,6 +722,10 @@ const pages = {
     }
 
     const day = await daySelect(draw);
+    // Janela do gráfico do acelerômetro: termina no último dado do dia.
+    const WINS = [[600, 'Últimos 10 minutos'], [1800, 'Última meia hora'], [3600, 'Última hora'], [21600, 'Últimas 6 horas'], [0, 'Dia inteiro']];
+    await fillSelect($('win'), WINS.map(([v, label], i) => option(v, label, i === 0)));
+    $('win').addEventListener('change', draw);
 
     async function draw() {
       const [from, to] = day();
@@ -738,13 +742,19 @@ const pages = {
         { color: 'var(--md-sys-color-primary)', pts: s.points.map((p) => [p.ts, p.avg]) },
       ], { ...span(s.points), gap: 300, min: 0 });
 
-      // Leituras x, y, z dos últimos 10 min que chegaram no dia escolhido.
+      // Leituras x, y, z do intervalo escolhido, até o último dado do dia.
+      const w = Number($('win').value);
       const end = s.points.at(-1);
-      const rawTo = end ? end.ts + end.dur + 1 : 0;
-      const raw = end ? await api(`api/v1/horses/${horse.id}/sensor/raw?from=${rawTo - 600}&to=${rawTo}&points=600`) : { t: [] };
+      const x1 = w ? (end ? end.ts + end.dur + 1 : to) : to;
+      const x0 = w ? x1 - w : from;
+      const step = (x1 - x0) / 600;
+      const raw = end ? await api(`api/v1/horses/${horse.id}/sensor/raw?from=${x0}&to=${x1}&points=600`) : { t: [] };
       if (!alive()) return;
-      accWin = raw.t.length ? [rawTo - 600, rawTo] : null;
-      lineChart($('accChart'), xyz(raw), { x0: rawTo - 600, x1: rawTo, gap: 5, seconds: true });
+      accWin = raw.t.length ? [x0, x1] : null;
+      lineChart($('accChart'), xyz(raw), { x0, x1, gap: Math.max(5, step * 3), seconds: w > 0 && w <= 3600 });
+      const label = WINS.find(([v]) => v === w)[1];
+      const each = step < 60 ? `${num(step, 0)} s` : `${num(step / 60, 1)} min`;
+      $('accNote').textContent = `${w ? `${label} com dados no dia` : label}, em g (média a cada ${each}). Toque no gráfico para marcar um padrão.`;
     }
 
     const xyz = (raw) => ['x', 'y', 'z'].map((k, j) => ({

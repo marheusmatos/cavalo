@@ -142,13 +142,18 @@ def buckets(blocks, from_ms, to_ms, points):
         values = decode(b)
         per = b.dur_ms / b.n  # ms entre leituras
         first = b.ts_ms + per / 2 - from_ms
-        for i in range(b.n):
+        i = 0
+        while i < b.n:
+            # leituras i..j-1 caem no intervalo k: soma por fatia (rápido
+            # mesmo num dia inteiro, que são milhões de leituras)
             k = int((first + i * per) // step)
+            j = min(b.n, max(i + 1, math.ceil(((k + 1) * step - first) / per)))
             if 0 <= k < points:
                 acc = sums[k]
                 for c in range(3):
-                    acc[c] += values[i * b.ch + c] * b.scale
-                acc[3] += 1
+                    acc[c] += sum(values[i * b.ch + c : j * b.ch : b.ch]) * b.scale
+                acc[3] += j - i
+            i = j
     out = {'t': [], 'x': [], 'y': [], 'z': []}
     for k, (x, y, z, n) in enumerate(sums):
         if n:

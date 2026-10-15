@@ -45,8 +45,8 @@ readings_router = APIRouter(
     dependencies=[Depends(get_current_user)],
 )
 
-# Janela máxima de /raw: 1 h a 50 Hz são 180 mil leituras para descompactar.
-RAW_MAX_S = 3600
+# Janela máxima de /raw: um dia (25 h cobre a troca de horário de verão).
+RAW_MAX_S = 25 * 3600
 
 
 def get_sensor_id(
@@ -261,7 +261,7 @@ def raw(
     points: int = Query(600, ge=10, le=2000),
     session: Session = Depends(get_session),
 ):
-    """Leituras do acelerômetro (x, y, z em g) numa janela de até 1 h.
+    """Leituras do acelerômetro (x, y, z em g) numa janela de até 1 dia.
 
     A janela é cortada em `points` intervalos e cada um traz a média das
     leituras; `t` é em epoch ms.

@@ -351,7 +351,7 @@ def test_leitura_series_e_raw(auth):
     assert len(raw['t']) in {5, 6}  # 2 min de dados em intervalos de 24 s
 
     assert client.get(f'{url}/series').status_code == 401
-    r = client.get(f'{url}/raw', params={'from': 0, 'to': 7200}, headers=auth)
+    r = client.get(f'{url}/raw', params={'from': 0, 'to': 26 * 3600}, headers=auth)
     assert r.status_code == 422
     r = client.get('/api/v1/horses/99999/sensor/series', headers=auth)
     assert r.status_code == 404

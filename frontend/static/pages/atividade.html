@@ -3,6 +3,7 @@
   <div class="card note" id="sensorNote" hidden></div>
 
   <md-outlined-select id="day" label="Dia" style="width:100%;margin-bottom:16px"></md-outlined-select>
+  <md-outlined-select id="win" label="Intervalo do acelerômetro" style="width:100%;margin-bottom:16px"></md-outlined-select>
 
   <!-- Um contador por padrão de movimento (detecções do modelo no sensor). -->
   <div class="counters" id="padCounters"></div>
@@ -24,7 +25,7 @@
         </span>
       </div>
       <div id="accChart" class="tappable"><div class="chart-empty">Sem dados</div></div>
-      <div class="chart-note" id="accNote">Últimos 10 minutos recebidos no dia, em g (média por segundo). Toque no gráfico para marcar um padrão.</div>
+      <div class="chart-note" id="accNote"></div>
     </div>
 
     <!-- Marcação: 30 s com todas as leituras; arrastar seleciona o trecho. -->

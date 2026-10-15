@@ -15,7 +15,7 @@ from email.message import EmailMessage
 from sqlalchemy import select
 
 from main import tracking
-from main.models import SensorAlert
+from main.models import Pattern, SensorAlert
 from main.settings import settings
 
 log = logging.getLogger(__name__)
@@ -34,6 +34,7 @@ KINDS = {
     'T': ('Temperatura', '°C', 1),
     'A': ('Intensidade do movimento', 'g', 2),
     'C': ('Cerca virtual', 'm', 0),
+    'P': ('Padrão de movimento', 'vezes', 0),
 }
 
 
@@ -72,7 +73,9 @@ def fence_out(session, horse):
     return round(dist), round(horse.fence_radius_m)
 
 
-def describe(kind, value, limit):
+def describe(kind, value, limit, name=None):
+    if kind == 'P':
+        return f'{name or "Padrão de movimento"}: {value:.0f} vezes seguidas (alerta com {limit:g})'
     if kind == 'C':
         return f'Fora da cerca virtual: {value:.0f} m do centro (raio {limit:g} m)'
     name, unit, digits = KINDS[kind]
@@ -110,9 +113,12 @@ def record(session, horse, alert):
         kind=alert.kind,
         value=alert.value,
         limit=alert.limit,
+        code=alert.code,
         email=alert.vet,
         emailed=False,
     )
+    pattern = session.get(Pattern, alert.code - 10) if alert.code else None
+    name = pattern.name if pattern else None
     recent = session.scalar(
         select(SensorAlert.id).where(
             SensorAlert.horse_id == horse.id,
@@ -122,11 +128,11 @@ def record(session, horse, alert):
         )
     )
     if alert.vet and not recent:
-        what = describe(alert.kind, alert.value, alert.limit)
+        what = describe(alert.kind, alert.value, alert.limit, name)
         when = datetime.fromtimestamp(now).strftime('%d/%m/%Y %H:%M')
         row.emailed = _send_email(
             alert.vet,
-            f'Alerta: {horse.name} - {KINDS[alert.kind][0].lower()}',
+            f'Alerta: {horse.name} - {(name or KINDS[alert.kind][0]).lower()}',
             f'{horse.name}: {what}.\n\n'
             f'Medido pelo sensor {horse.sensor_id} em {when}.\n'
             'O LED do sensor fica piscando até alguém apertar o botão.\n',

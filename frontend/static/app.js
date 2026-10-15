@@ -697,13 +697,41 @@ const pages = {
 
   async atividade({ horse, alive }) {
     bar({ title: 'Atividade', back: `#/cavalo/${horse.id}` });
+    let patterns = [];
+    let labels = [];
+    let model = null;
+    let accWin = null; // [x0, x1] (s) do gráfico de 10 min: tocar abre a marcação
+    let mark = null; // janela aberta na marcação, { from, to } em s
+    let sel = null; // trecho selecionado, { from_ms, to_ms }
+    const axesSel = new Set();
+    const patName = (id) => patterns.find((p) => p.id === id)?.name ?? 'Padrão';
+    const seg = (ms) => new Date(ms).toLocaleTimeString('pt-BR');
+
+    async function loadMotion() {
+      [{ patterns }, { labels }, { model }] = await Promise.all([
+        api('api/v1/motion/patterns'),
+        api(`api/v1/motion/labels?horse_id=${horse.id}`),
+        api('api/v1/motion/model'),
+      ]);
+      if (!alive()) return;
+      const cur = Number($('markPat').value) || patterns[0]?.id;
+      await fillSelect($('markPat'), patterns.map((p) => option(p.id, p.name, p.id === cur)));
+      renderModel();
+      renderLabels();
+      updateSel();
+    }
+
     const day = await daySelect(draw);
 
     async function draw() {
       const [from, to] = day();
-      const s = await api(`api/v1/horses/${horse.id}/sensor/series?kind=A&from=${from}&to=${to}`);
+      const [s, det] = await Promise.all([
+        api(`api/v1/horses/${horse.id}/sensor/series?kind=A&from=${from}&to=${to}`),
+        api(`api/v1/horses/${horse.id}/sensor/detections?from=${from}&to=${to}`),
+      ]);
       if (!alive()) return;
       sensorNote(horse, s.last_ts, 'Sensor vinculado, aguardando o primeiro envio.');
+      renderDetections(det);
       $('intVal').textContent = s.points.length ? num(Math.max(...s.points.map((p) => p.max))) : '—';
       lineChart($('intChart'), [
         { color: 'var(--md-sys-color-primary)', opacity: 0.35, pts: s.points.map((p) => [p.ts, p.max]) },
@@ -715,15 +743,219 @@ const pages = {
       const rawTo = end ? end.ts + end.dur + 1 : 0;
       const raw = end ? await api(`api/v1/horses/${horse.id}/sensor/raw?from=${rawTo - 600}&to=${rawTo}&points=600`) : { t: [] };
       if (!alive()) return;
-      const axis = (k) => raw.t.map((t, i) => [t / 1000, raw[k][i]]);
-      lineChart($('accChart'), [
-        { color: 'var(--md-sys-color-primary)', pts: axis('x') },
-        { color: '#4DA3FF', pts: axis('y') },
-        { color: 'var(--status-ok)', pts: axis('z') },
-      ], { x0: rawTo - 600, x1: rawTo, gap: 5, seconds: true });
+      accWin = raw.t.length ? [rawTo - 600, rawTo] : null;
+      lineChart($('accChart'), xyz(raw), { x0: rawTo - 600, x1: rawTo, gap: 5, seconds: true });
     }
 
-    await draw();
+    const xyz = (raw) => ['x', 'y', 'z'].map((k, j) => ({
+      color: ['var(--md-sys-color-primary)', '#4DA3FF', 'var(--status-ok)'][j],
+      pts: raw.t.map((t, i) => [t / 1000, raw[k][i]]),
+    }));
+
+    function renderDetections(det) {
+      $('padCounters').replaceChildren(...(det.counts.length ? det.counts : [{ name: 'Padrões', n: null }]).map((c, i) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = '<div class="metric-label"></div><div class="big-num"></div>';
+        card.firstChild.textContent = c.name;
+        card.lastChild.textContent = c.n ?? '—';
+        if (i === 0) card.lastChild.style.color = 'var(--status-ok)';
+        return card;
+      }));
+      $('eventList').replaceChildren(...(det.events.length
+        ? det.events.map((e) => listItem(e.name, hora(e.ts)))
+        : [listItem('', 'Nenhum evento registrado.')]));
+    }
+
+    // --- marcação --------------------------------------------------------
+    async function openMark(center) {
+      mark = { from: Math.round(center) - 15, to: Math.round(center) + 15 };
+      sel = null;
+      $('markCard').hidden = false;
+      $('markWhen').textContent = `${seg(mark.from * 1000)} – ${seg(mark.to * 1000)}`;
+      $('markChart').innerHTML = '<div class="chart-empty">Carregando…</div>';
+      updateSel();
+      $('markCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      const raw = await api(`api/v1/horses/${horse.id}/sensor/raw?from=${mark.from}&to=${mark.to}&points=1500`);
+      if (!alive()) return;
+      lineChart($('markChart'), xyz(raw), { x0: mark.from, x1: mark.to, gap: 0.2, seconds: true });
+      drawMarks();
+    }
+
+    function drawMarks() {
+      const svg = $('markChart').querySelector('svg');
+      if (!svg || !mark) return;
+      svg.querySelectorAll('.mark').forEach((r) => r.remove());
+      const t0 = mark.from * 1000;
+      const width = (mark.to - mark.from) * 1000;
+      const rect = (f, t, cls) => {
+        const x0 = Math.max(0, (f - t0) / width) * 600;
+        const x1 = Math.min(1, (t - t0) / width) * 600;
+        if (x1 <= x0) return;
+        const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        Object.entries({ x: x0, y: 0, width: x1 - x0, height: 120, class: `mark ${cls}` }).forEach(([k, v]) => r.setAttribute(k, v));
+        svg.prepend(r);
+      };
+      for (const l of labels) rect(l.from_ms, l.to_ms, 'mark--saved');
+      if (sel) rect(sel.from_ms, sel.to_ms, 'mark--sel');
+    }
+
+    function updateSel() {
+      const dur = sel ? (sel.to_ms - sel.from_ms) / 1000 : 0;
+      $('markSel').textContent = dur >= 0.3
+        ? `Selecionado: ${num(dur, 1)} s (${seg(sel.from_ms)} – ${seg(sel.to_ms)})`
+        : 'Arraste sobre o gráfico para selecionar o trecho do padrão (de 0,3 a 30 s).';
+      $('markSave').disabled = !(dur >= 0.3 && dur <= 30 && axesSel.size && $('markPat').value);
+    }
+
+    {
+      const el = $('markChart');
+      let start = null;
+      const at = (e) => {
+        const r = el.querySelector('svg').getBoundingClientRect();
+        return Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+      };
+      const setSel = (a, b) => {
+        const width = (mark.to - mark.from) * 1000;
+        sel = { from_ms: Math.round(mark.from * 1000 + Math.min(a, b) * width), to_ms: Math.round(mark.from * 1000 + Math.max(a, b) * width) };
+        drawMarks();
+        updateSel();
+      };
+      el.addEventListener('pointerdown', (e) => {
+        if (!mark || !el.querySelector('svg')) return;
+        start = at(e);
+        el.setPointerCapture(e.pointerId);
+        setSel(start, start);
+      });
+      el.addEventListener('pointermove', (e) => start != null && setSel(start, at(e)));
+      el.addEventListener('pointerup', () => { start = null; });
+    }
+    $('accChart').addEventListener('click', (e) => {
+      const svg = $('accChart').querySelector('svg');
+      if (!svg || !accWin) return;
+      const r = svg.getBoundingClientRect();
+      openMark(accWin[0] + ((e.clientX - r.left) / r.width) * (accWin[1] - accWin[0]));
+    });
+    $('markPrev').addEventListener('click', () => mark && openMark(mark.from - 15));
+    $('markNext').addEventListener('click', () => mark && openMark(mark.to + 15));
+    $('markClose').addEventListener('click', () => { $('markCard').hidden = true; mark = null; });
+    $('markAxes').addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      const on = b.getAttribute('aria-pressed') !== 'true';
+      b.setAttribute('aria-pressed', String(on));
+      on ? axesSel.add(b.dataset.a) : axesSel.delete(b.dataset.a);
+      updateSel();
+    });
+    $('markPat').addEventListener('change', updateSel);
+    $('markSave').addEventListener('click', async () => {
+      try {
+        const l = await api('api/v1/motion/labels', {
+          method: 'POST',
+          json: { pattern_id: Number($('markPat').value), horse_id: horse.id, ...sel, axes: [...axesSel].join('') },
+        });
+        labels.push(l);
+      } catch (err) {
+        toast(err.message);
+        return;
+      }
+      sel = null;
+      drawMarks();
+      updateSel();
+      renderLabels();
+      loadMotion();
+      toast('Marcação salva. Clique em Treinar quando terminar de marcar.');
+    });
+
+    function renderLabels() {
+      $('labelList').replaceChildren(...(labels.length ? [...labels].reverse().map((l) => {
+        const del = document.createElement('md-icon-button');
+        del.setAttribute('aria-label', 'Apagar marcação');
+        del.innerHTML = '<span class="material-symbols-outlined">delete</span>';
+        del.onclick = async (e) => {
+          e.stopPropagation();
+          await api(`api/v1/motion/labels/${l.id}`, { method: 'DELETE' });
+          labels = labels.filter((x) => x.id !== l.id);
+          renderLabels();
+          drawMarks();
+          loadMotion();
+        };
+        const item = listItem(
+          `${patName(l.pattern_id)} · eixos ${l.axes.toUpperCase()}`,
+          `${hora(l.from_ms / 1000)} · ${num((l.to_ms - l.from_ms) / 1000, 1)} s`,
+          del,
+        );
+        item.classList.add('tap');
+        item.onclick = () => openMark((l.from_ms + l.to_ms) / 2000);
+        return item;
+      }) : [listItem('', 'Nenhuma marcação. Toque no gráfico do acelerômetro para marcar um trecho.')]));
+    }
+
+    // --- padrões e treino ------------------------------------------------
+    function renderModel() {
+      $('modelInfo').textContent = model
+        ? `Treinado em ${hora(model.created)}. O sensor baixa o modelo no próximo envio (até 10 min).`
+        : 'Ainda não treinado: marque trechos de cada padrão e clique em Treinar.';
+      $('patList').replaceChildren(...patterns.map((p) => {
+        const m = model?.metrics?.[String(p.id)];
+        const quality = !m ? 'fora do último treino'
+          : m.error ? m.error
+            : m.recall == null ? 'marque 2 ou mais trechos para medir o acerto'
+              : `achou ${Math.round(m.recall * 100)}% dos trechos, ${num(m.false_per_h, 1)} falsos alarmes por hora`;
+        const alert = p.alert_n ? ` · alerta com ${p.alert_n} em ${p.alert_min} min` : '';
+        const edit = document.createElement('md-icon-button');
+        edit.setAttribute('aria-label', `Editar ${p.name}`);
+        edit.innerHTML = '<span class="material-symbols-outlined">edit</span>';
+        edit.onclick = () => openPattern(p);
+        return listItem(p.name, `${p.labels} marcações${alert} · ${quality}`, edit);
+      }));
+    }
+
+    let editing = null;
+    function openPattern(p) {
+      editing = p;
+      $('patTitle').textContent = p ? 'Editar padrão' : 'Novo padrão';
+      $('patName').value = p?.name ?? '';
+      $('patN').value = p?.alert_n ?? '';
+      $('patMin').value = p?.alert_min ?? '';
+      $('patDelete').hidden = !p;
+      $('patDialog').show();
+    }
+    $('patNew').addEventListener('click', () => openPattern(null));
+    $('patCancel').addEventListener('click', () => $('patDialog').close());
+    $('patSave').addEventListener('click', async () => {
+      const n = (id) => ($(id).value === '' ? null : Number($(id).value));
+      const body = { name: $('patName').value.trim(), alert_n: n('patN'), alert_min: n('patMin') };
+      try {
+        await api(editing ? `api/v1/motion/patterns/${editing.id}` : 'api/v1/motion/patterns', { method: editing ? 'PUT' : 'POST', json: body });
+      } catch (err) {
+        toast(err.message);
+        return;
+      }
+      $('patDialog').close();
+      loadMotion();
+    });
+    $('patDelete').addEventListener('click', async () => {
+      if (!confirm(`Excluir o padrão "${editing.name}" e todas as marcações dele?`)) return;
+      await api(`api/v1/motion/patterns/${editing.id}`, { method: 'DELETE' });
+      $('patDialog').close();
+      labels = labels.filter((l) => l.pattern_id !== editing.id);
+      loadMotion();
+    });
+    $('train').addEventListener('click', async () => {
+      $('train').disabled = true;
+      try {
+        model = await api('api/v1/motion/train', { method: 'POST' });
+        toast('Modelo treinado. Os sensores baixam no próximo envio.');
+      } catch (err) {
+        toast(err.message);
+      } finally {
+        $('train').disabled = false;
+      }
+      loadMotion();
+    });
+
+    await Promise.all([draw(), loadMotion()]);
     timer = setInterval(draw, 60_000); // o sensor manda a cada ~10 min
   },
 

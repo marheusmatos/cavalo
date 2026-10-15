@@ -19,7 +19,8 @@ from sqlalchemy.orm import Session
 
 from main import alerts, sensor
 from main.database import get_session
-from main.models import Horse, SensorBlock
+from main.models import Horse, Pattern, SensorBlock
+from main.routes.motion import latest_model
 from main.schemas import (
     AlertLimits,
     AlertLimitsPublic,
@@ -157,6 +158,19 @@ def device_limits(
     )
 
 
+@device_router.get('/model')
+def device_model(
+    ver: int = Query(0, ge=0, description='versão do /modelo.bin do cartão'),
+    sensor_id: str = Depends(get_sensor_id),
+    session: Session = Depends(get_session),
+):
+    """/modelo.bin dos padrões de movimento. 204 se o ESP32 já tem este."""
+    m = latest_model(session)
+    if m is None or m.ver == ver:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return Response(m.blob, media_type='application/octet-stream')
+
+
 @device_router.post('/alert')
 def device_alert(
     alert: DeviceAlert,
@@ -287,3 +301,31 @@ def put_limits(
     alerts.set_limits(horse, data.model_dump())
     session.commit()
     return alerts.limits(horse)
+
+
+@readings_router.get('/detections')
+def detections(
+    horse_id: int,
+    from_: int = Query(alias='from', description='epoch (s)'),
+    to: int = Query(description='epoch (s)'),
+    session: Session = Depends(get_session),
+):
+    """Padrões de movimento que o sensor detectou: total por padrão e a lista."""
+    _check_horse(session, horse_id)
+    names = {p.code: p.name for p in session.scalars(select(Pattern))}
+    q = select(SensorBlock).where(
+        SensorBlock.horse_id == horse_id,
+        SensorBlock.kind == 'E',
+        SensorBlock.ts_ms >= from_ * 1000,
+        SensorBlock.ts_ms < to * 1000,
+    )
+    counts, events = {}, []
+    for b in session.scalars(q.order_by(SensorBlock.ts_ms)):
+        for code in sensor.decode(b):
+            if code in names:
+                counts[code] = counts.get(code, 0) + 1
+                events.append({'ts': b.ts_ms // 1000, 'code': code, 'name': names[code]})
+    return {
+        'counts': [{'code': c, 'name': n, 'n': counts.get(c, 0)} for c, n in sorted(names.items())],
+        'events': events[::-1][:200],  # mais recentes primeiro
+    }

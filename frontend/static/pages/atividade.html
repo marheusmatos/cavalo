@@ -4,11 +4,8 @@
 
   <md-outlined-select id="day" label="Dia" style="width:100%;margin-bottom:16px"></md-outlined-select>
 
-  <!-- Pulos e voltas dependem do classificador de movimento, ainda não feito. -->
-  <div class="counters">
-    <div class="card"><div class="metric-label">Pulos</div><div class="big-num" style="color:var(--status-ok)">—</div></div>
-    <div class="card"><div class="metric-label">Voltas</div><div class="big-num">—</div></div>
-  </div>
+  <!-- Um contador por padrão de movimento (detecções do modelo no sensor). -->
+  <div class="counters" id="padCounters"></div>
 
   <div class="charts charts--stack">
     <div class="card chart-card">
@@ -26,11 +23,68 @@
           <span style="color:var(--status-ok)">● Z</span>
         </span>
       </div>
-      <div id="accChart"><div class="chart-empty">Sem dados</div></div>
-      <div class="chart-note" id="accNote">Últimos 10 minutos recebidos no dia, em g (média por segundo)</div>
+      <div id="accChart" class="tappable"><div class="chart-empty">Sem dados</div></div>
+      <div class="chart-note" id="accNote">Últimos 10 minutos recebidos no dia, em g (média por segundo). Toque no gráfico para marcar um padrão.</div>
+    </div>
+
+    <!-- Marcação: 30 s com todas as leituras; arrastar seleciona o trecho. -->
+    <div class="card chart-card" id="markCard" hidden>
+      <div class="chart-head" style="align-items:center">
+        <span>Marcar padrão · <span id="markWhen" class="mono"></span></span>
+        <span class="mark-nav">
+          <md-icon-button id="markPrev" aria-label="30 s antes"><span class="material-symbols-outlined">chevron_left</span></md-icon-button>
+          <md-icon-button id="markNext" aria-label="30 s depois"><span class="material-symbols-outlined">chevron_right</span></md-icon-button>
+          <md-icon-button id="markClose" aria-label="Fechar"><span class="material-symbols-outlined">close</span></md-icon-button>
+        </span>
+      </div>
+      <div id="markChart" class="selectable"><div class="chart-empty">Carregando…</div></div>
+      <div class="chart-note" id="markSel">Arraste sobre o gráfico para selecionar o trecho do padrão.</div>
+      <div class="mark-form">
+        <div>
+          <div class="label muted">Eixos em que o padrão aparece</div>
+          <div class="axis-toggle" id="markAxes">
+            <button type="button" data-a="x" aria-pressed="false" style="--c:var(--md-sys-color-primary)">X</button>
+            <button type="button" data-a="y" aria-pressed="false" style="--c:#4DA3FF">Y</button>
+            <button type="button" data-a="z" aria-pressed="false" style="--c:var(--status-ok)">Z</button>
+          </div>
+        </div>
+        <md-outlined-select id="markPat" label="Padrão"></md-outlined-select>
+        <md-filled-button id="markSave" disabled>Salvar marcação</md-filled-button>
+      </div>
     </div>
   </div>
 
+  <div class="section-label muted">Modelo dos padrões</div>
+  <div class="card">
+    <div id="modelInfo" class="muted" style="font-size:13px"></div>
+    <div id="patList"></div>
+    <div class="row" style="justify-content:flex-end;margin-top:8px">
+      <md-text-button id="patNew">Novo padrão</md-text-button>
+      <md-filled-button id="train">Treinar</md-filled-button>
+    </div>
+  </div>
+
+  <div class="section-label muted">Marcações deste cavalo</div>
+  <div class="card" id="labelList"></div>
+
   <div class="section-label muted">Eventos</div>
-  <div class="card muted" style="font-size:13px">Nenhum evento registrado.</div>
+  <div class="card" id="eventList"></div>
 </section>
+
+<md-dialog id="patDialog">
+  <div slot="headline" id="patTitle">Padrão</div>
+  <form slot="content" method="dialog" class="dialog-form">
+    <md-outlined-text-field id="patName" label="Nome (ex.: Pulo, Volta)" maxlength="40"></md-outlined-text-field>
+    <div class="label muted">Alerta (opcional): LED, e-mail e sino quando o padrão se repete</div>
+    <div class="pair">
+      <md-outlined-text-field id="patN" label="Detecções" type="number" min="1" step="1"></md-outlined-text-field>
+      <md-outlined-text-field id="patMin" label="Em minutos" type="number" min="1" step="1"></md-outlined-text-field>
+    </div>
+    <div class="muted" style="font-size:12px">O alerta vai para o sensor no próximo treino.</div>
+  </form>
+  <div slot="actions">
+    <md-text-button id="patDelete" class="danger">Excluir</md-text-button>
+    <md-text-button id="patCancel">Cancelar</md-text-button>
+    <md-filled-button id="patSave">Salvar</md-filled-button>
+  </div>
+</md-dialog>

@@ -9,7 +9,15 @@ from sqlalchemy.orm import Session
 from main import alerts as sensor_alerts
 from main import tracking
 from main.database import get_session
-from main.models import Horse, Meal, Position, SensorAlert, SensorBlock
+from main.models import (
+    Horse,
+    Meal,
+    Pattern,
+    PatternLabel,
+    Position,
+    SensorAlert,
+    SensorBlock,
+)
 from main.schemas import (
     HorseList,
     HorsePublic,
@@ -128,6 +136,8 @@ def delete_horse(horse_id: int, session: Session = Depends(get_session)):
     session.execute(
         delete(SensorBlock).where(SensorBlock.horse_id == horse_id)
     )
+    session.execute(delete(SensorAlert).where(SensorAlert.horse_id == horse_id))
+    session.execute(delete(PatternLabel).where(PatternLabel.horse_id == horse_id))
     session.delete(horse)
     session.commit()
     tracking.last_poll.pop(horse_id, None)
@@ -288,15 +298,18 @@ def list_alerts(session: Session = Depends(get_session)):
     )
     shown = set()
     for row, horse in session.execute(q):
-        if (horse.id, row.kind) in shown:
+        if (horse.id, row.kind, row.code) in shown:
             continue
-        shown.add((horse.id, row.kind))
+        shown.add((horse.id, row.kind, row.code))
+        pattern = session.get(Pattern, row.code - 10) if row.code else None
         add(
             horse,
             'crit',
-            sensor_alerts.describe(row.kind, row.value, row.limit),
+            sensor_alerts.describe(
+                row.kind, row.value, row.limit, pattern and pattern.name
+            ),
             row.ts,
-            'atividade' if row.kind == 'A' else 'biometria',
+            'atividade' if row.kind in 'AP' else 'biometria',
         )
     alerts.sort(key=lambda a: a['ts'] or 0, reverse=True)
     return {'alerts': alerts}

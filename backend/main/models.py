@@ -9,6 +9,7 @@ from sqlalchemy import (
     Integer,
     LargeBinary,
     String,
+    Text,
     UniqueConstraint,
 )
 
@@ -133,5 +134,50 @@ class SensorAlert(Base):
     kind = Column(String(1), nullable=False)  # H (bpm), T (°C), A (movimento)
     value = Column(Float, nullable=False)
     limit = Column(Float, nullable=False)  # o limite que foi passado
+    code = Column(Integer, nullable=True)  # P: código do padrão de movimento
     email = Column(String(254), nullable=True)  # veterinário avisado
     emailed = Column(Boolean, nullable=False, default=False)
+
+
+class Pattern(Base):
+    """Padrão de movimento que o modelo do sensor aprende (Pulo, Volta…).
+
+    O ESP32 registra cada detecção como evento de código 10 + id. Alerta
+    opcional: alert_n detecções em alert_min minutos.
+    """
+
+    __tablename__ = 'patterns'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(40), nullable=False, unique=True)
+    alert_n = Column(Integer, nullable=True)
+    alert_min = Column(Integer, nullable=True)
+
+    @property
+    def code(self):
+        return 10 + self.id
+
+
+class PatternLabel(Base):
+    """Trecho do acelerômetro que o veterinário marcou como um padrão."""
+
+    __tablename__ = 'pattern_labels'
+
+    id = Column(Integer, primary_key=True)
+    pattern_id = Column(Integer, ForeignKey('patterns.id'), nullable=False)
+    horse_id = Column(Integer, ForeignKey('horses.id'), nullable=False)
+    from_ms = Column(BigInteger, nullable=False)  # epoch
+    to_ms = Column(BigInteger, nullable=False)
+    axes = Column(String(3), nullable=False)  # eixos em que o padrão aparece
+
+
+class MotionModel(Base):
+    """Cada treino: o /modelo.bin que vai para os sensores (o maior ver vale)."""
+
+    __tablename__ = 'motion_models'
+
+    id = Column(Integer, primary_key=True)
+    ver = Column(Integer, nullable=False, unique=True)
+    created = Column(Integer, nullable=False)  # epoch (s)
+    metrics = Column(Text, nullable=False)  # JSON, por padrão
+    blob = Column(LargeBinary, nullable=False)

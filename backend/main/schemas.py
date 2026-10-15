@@ -137,11 +137,44 @@ class AlertLimitsPublic(AlertLimits):
 class DeviceAlert(BaseModel):
     """O que o ESP32 manda quando uma leitura sai dos limites."""
 
-    # bpm, °C, movimento (g), C(erca): distância do centro (m) e o raio
-    kind: Literal['H', 'T', 'A', 'C']
+    # bpm, °C, movimento (g), C(erca): distância do centro (m) e o raio,
+    # P(adrão de movimento): detecções seguidas e o N do alerta
+    kind: Literal['H', 'T', 'A', 'C', 'P']
+    code: Optional[int] = Field(default=None, ge=0, le=255)  # P: qual padrão
     value: float
     limit: float
     vet: Optional[EmailStr] = None  # vet_email do config.txt do cartão
+
+
+# --- Padrões de movimento (modelo do sensor) --------------------------------
+class PatternIn(BaseModel):
+    name: str = Field(min_length=1, max_length=40)
+    # Alerta: alert_n detecções em alert_min minutos (os dois ou nenhum).
+    alert_n: Optional[int] = Field(default=None, ge=1, le=255)
+    alert_min: Optional[int] = Field(default=None, ge=1, le=1440)
+
+    @model_validator(mode='after')
+    def _par(self):
+        if (self.alert_n is None) != (self.alert_min is None):
+            raise ValueError('Informe as detecções e os minutos do alerta, ou nenhum')
+        return self
+
+
+class LabelIn(BaseModel):
+    pattern_id: int
+    horse_id: int
+    from_ms: int = Field(ge=0)
+    to_ms: int = Field(ge=0)
+    axes: str = Field(pattern=r'^[xyz]{1,3}$')  # 1 a 3 eixos
+
+    @model_validator(mode='after')
+    def _trecho(self):
+        if not 300 <= self.to_ms - self.from_ms <= 30_000:  # noqa: PLR2004
+            raise ValueError('O trecho marcado precisa ter de 0,3 a 30 s')
+        if len(set(self.axes)) != len(self.axes):
+            raise ValueError('Eixo repetido')
+        self.axes = ''.join(a for a in 'xyz' if a in self.axes)
+        return self
 
 
 # --- Autenticação (resposta do login, não é tabela) ------------------------

@@ -9,6 +9,7 @@ import logging
 import math
 import random
 import time
+from itertools import pairwise
 
 from sqlalchemy import select
 
@@ -47,6 +48,36 @@ def inside_fence(horse, pos):
     if None in fence:
         return None
     return haversine_m(fence[0], fence[1], pos.lat, pos.lon) <= fence[2]
+
+
+def track_stats(pts):
+    """Distância (m), velocidade média e máxima (km/h) e aceleração (m/s²).
+
+    Pelas posições da tag, em ordem de tempo. A aceleração é a variação média
+    da velocidade entre trechos seguidos: com reports de 10 em 10 min é uma
+    média grosseira, não o tranco de um galope (isso é o acelerômetro).
+    """
+    # ponytail: soma crua; com o cavalo parado o erro de 10–30 m do report
+    # infla a distância. Suavizar (média móvel) se isso pesar na análise.
+    segs = [
+        (haversine_m(a.lat, a.lon, b.lat, b.lon), b.ts - a.ts, (a.ts + b.ts) / 2)
+        for a, b in pairwise(pts)
+        if b.ts > a.ts
+    ]
+    dist = sum(d for d, _, _ in segs)
+    span = pts[-1].ts - pts[0].ts if pts else 0
+    speeds = [(d / dt, mid) for d, dt, mid in segs]  # m/s no meio do trecho
+    accel = [
+        abs(v2 - v1) / (m2 - m1)
+        for (v1, m1), (v2, m2) in pairwise(speeds)
+        if m2 > m1
+    ]
+    return {
+        'distance_m': dist,
+        'avg_speed_kmh': dist / span * 3.6 if span else 0,
+        'max_speed_kmh': max((v for v, _ in speeds), default=0) * 3.6,
+        'accel_ms2': sum(accel) / len(accel) if accel else None,
+    }
 
 
 def last_position(session, horse_id, until=None):

@@ -3,10 +3,16 @@
   <div class="card note" id="sensorNote" hidden></div>
 
   <md-outlined-select id="day" label="Dia" style="width:100%;margin-bottom:16px"></md-outlined-select>
-  <md-outlined-select id="win" label="Intervalo do acelerômetro" style="width:100%;margin-bottom:16px"></md-outlined-select>
+  <md-outlined-select id="win" label="Intervalo de tempo" style="width:100%;margin-bottom:16px"></md-outlined-select>
 
   <!-- Um contador por padrão de movimento (detecções do modelo no sensor). -->
   <div class="counters" id="padCounters"></div>
+
+  <div class="card travel-card">
+    <div class="chart-head"><span>Deslocamento no intervalo</span><a class="chart-val" id="travelOpen">Abrir localização</a></div>
+    <div id="travelStats"></div>
+    <div id="miniMap" class="mini-map" role="link" aria-label="Abrir localização"></div>
+  </div>
 
   <div class="charts charts--stack">
     <div class="card chart-card">

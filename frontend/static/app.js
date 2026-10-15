@@ -311,6 +311,27 @@ function locSummary(horse, latest) {
   return [fence, `Atualizado ${ago(latest.ts)}`];
 }
 
+// Deslocamento num intervalo (rota /positions/stats): localização e atividade.
+function showTravel(el, s) {
+  const km = s.distance_m >= 1000 ? `${num(s.distance_m / 1000)} km` : `${num(s.distance_m, 0)} m`;
+  const items = [
+    ['Distância', km],
+    ['Vel. média', `${num(s.avg_speed_kmh, 1)} km/h`],
+    ['Vel. máxima', `${num(s.max_speed_kmh, 1)} km/h`],
+    ['Aceleração', s.accel_ms2 == null ? '—' : `${num(s.accel_ms2, 4)} m/s²`],
+    ['Movimento', s.intensity_g == null ? '—' : `${num(s.intensity_g)} g`],
+  ];
+  el.innerHTML = '<div class="stats-grid"></div><div class="stats-foot muted"></div>';
+  el.firstChild.replaceChildren(...items.map(([k, v]) => {
+    const d = document.createElement('div');
+    d.innerHTML = '<span class="muted"></span><b></b>';
+    d.firstChild.textContent = k;
+    d.lastChild.textContent = v;
+    return d;
+  }));
+  el.lastChild.textContent = `${s.points} ${s.points === 1 ? 'posição' : 'posições'} da tag · movimento pelo acelerômetro`;
+}
+
 function pinIcon(name, sub) {
   const el = document.createElement('div');
   el.className = 'pin';
@@ -590,7 +611,9 @@ const pages = {
       }
       if (!editing) showFence();
       const n = track.positions.length;
-      $('statDist').textContent = `${num(track.distance_m / 1000)} km · ${n} ${n === 1 ? 'ponto' : 'pontos'}`;
+      $('statDist').textContent = `${n} ${n === 1 ? 'ponto' : 'pontos'}`;
+      if (!editing) showTravel($('trackStats'), await api(`api/v1/horses/${horse.id}/positions/stats?from=${since()}&to=${Math.floor(Date.now() / 1000)}`));
+      if (!alive()) return;
 
       let msg = '';
       if (!horse.tag_id) {
@@ -638,7 +661,7 @@ const pages = {
     function edit(on) {
       editing = on;
       for (const id of ['fenceEdit', 'fenceBanner', 'crosshair']) $(id).hidden = !on;
-      for (const id of ['fenceFab', 'legend']) $(id).hidden = on;
+      for (const id of ['fenceFab', 'legend', 'trackStats']) $(id).hidden = on;
       fence.setStyle(on ? { dashArray: null, opacity: 1, fillOpacity: 0.14 } : { dashArray: '7 7', opacity: 0.5, fillOpacity: 0.07 });
       if (on) map.on('move', follow);
       else map.off('move', follow);
@@ -727,13 +750,17 @@ const pages = {
     await fillSelect($('win'), WINS.map(([v, label], i) => option(v, label, i === 0)));
     $('win').addEventListener('change', draw);
 
+    // Trocar dia e intervalo em seguida dispara dois draw(): só o último desenha.
+    let drawing = 0;
     async function draw() {
+      const me = ++drawing;
+      const current = () => alive() && me === drawing;
       const [from, to] = day();
       const [s, det] = await Promise.all([
         api(`api/v1/horses/${horse.id}/sensor/series?kind=A&from=${from}&to=${to}`),
         api(`api/v1/horses/${horse.id}/sensor/detections?from=${from}&to=${to}`),
       ]);
-      if (!alive()) return;
+      if (!current()) return;
       sensorNote(horse, s.last_ts, 'Sensor vinculado, aguardando o primeiro envio.');
       renderDetections(det);
       $('intVal').textContent = s.points.length ? num(Math.max(...s.points.map((p) => p.max))) : '—';
@@ -749,12 +776,55 @@ const pages = {
       const x0 = w ? x1 - w : from;
       const step = (x1 - x0) / 600;
       const raw = end ? await api(`api/v1/horses/${horse.id}/sensor/raw?from=${x0}&to=${x1}&points=600`) : { t: [] };
-      if (!alive()) return;
+      if (!current()) return;
       accWin = raw.t.length ? [x0, x1] : null;
       lineChart($('accChart'), xyz(raw), { x0, x1, gap: Math.max(5, step * 3), seconds: w > 0 && w <= 3600 });
       const label = WINS.find(([v]) => v === w)[1];
       const each = step < 60 ? `${num(step, 0)} s` : `${num(step / 60, 1)} min`;
       $('accNote').textContent = `${w ? `${label} com dados no dia` : label}, em g (média a cada ${each}). Toque no gráfico para marcar um padrão.`;
+      await travel(x0, x1, current);
+    }
+
+    // Deslocamento no mesmo intervalo do gráfico, com a prévia do mapa.
+    let mini;
+    let miniLayer;
+    $('travelOpen').href = `#/localizacao/${horse.id}`;
+    $('miniMap').addEventListener('click', () => go(`#/localizacao/${horse.id}`));
+    async function travel(x0, x1, current) {
+      const [st, track, latest] = await Promise.all([
+        api(`api/v1/horses/${horse.id}/positions/stats?from=${x0}&to=${x1}`),
+        api(`api/v1/horses/${horse.id}/positions?from=${x0}&to=${x1}`),
+        api(`api/v1/horses/${horse.id}/positions/latest`).catch(() => null),
+      ]);
+      if (!current()) return;
+      showTravel($('travelStats'), st);
+      $('miniMap').hidden = !horse.tag_id;
+      if (!horse.tag_id) return;
+      if (!mini) {
+        mini = L.map('miniMap', {
+          zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false,
+          doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false,
+        }).setView([-15.8, -47.9], 3); // o círculo da cerca só se desenha com o mapa já posicionado
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, crossOrigin: true }).addTo(mini);
+        miniLayer = L.layerGroup().addTo(mini);
+        onLeave = () => mini.remove();
+      }
+      const cor = getComputedStyle(document.documentElement).getPropertyValue('--md-sys-color-primary').trim();
+      miniLayer.clearLayers();
+      const pts = track.positions.map((p) => [p.lat, p.lon]);
+      L.polyline(pts, { color: cor, weight: 3, dashArray: '2 8', lineCap: 'round' }).addTo(miniLayer);
+      const bounds = L.latLngBounds(pts);
+      if (horse.fence_lat != null && horse.fence_radius_m != null) {
+        const center = L.latLng(horse.fence_lat, horse.fence_lon);
+        L.circle(center, { radius: horse.fence_radius_m, color: '#C6462F', weight: 2, opacity: 0.5, fillOpacity: 0.07, dashArray: '7 7' }).addTo(miniLayer);
+        bounds.extend(center.toBounds(horse.fence_radius_m * 2));
+      }
+      if (latest) {
+        L.circleMarker([latest.lat, latest.lon], { radius: 6, color: cor, weight: 2, fillOpacity: 0.9 }).addTo(miniLayer);
+        bounds.extend([latest.lat, latest.lon]);
+      }
+      mini.invalidateSize();
+      if (bounds.isValid()) mini.fitBounds(bounds.pad(0.2), { maxZoom: 17, animate: false });
     }
 
     const xyz = (raw) => ['x', 'y', 'z'].map((k, j) => ({

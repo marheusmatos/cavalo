@@ -188,6 +188,22 @@ def test_api_trajeto_distancia_e_cerca(auth):
     assert [p['ts'] for p in part['positions']] == [t0 + 600]
     assert part['distance_m'] == 0
 
+    stats = client.get(
+        f'{url}/positions/stats',
+        params={'from': t0, 'to': t0 + 1200},
+        headers=auth,
+    ).json()
+    assert stats['points'] == 3
+    assert stats['distance_m'] == pytest.approx(333.6, abs=0.5)
+    assert stats['max_speed_kmh'] == pytest.approx(222.4 / 600 * 3.6, abs=0.01)
+    # 111 m e depois 222 m em 10 min: a velocidade subiu 0,185 m/s em 600 s
+    assert stats['accel_ms2'] == pytest.approx(111.2 / 600 / 600, rel=0.01)
+    assert stats['intensity_g'] is None  # sem sensor
+    bad = client.get(
+        f'{url}/positions/stats', params={'from': t0, 'to': t0}, headers=auth
+    )
+    assert bad.status_code == 422
+
     latest = client.get(f'{url}/positions/latest', headers=auth).json()
     assert latest['ts'] == t0 + 1200
     assert latest['inside_fence'] is False  # 333 m do centro, cerca de 150 m

@@ -1,5 +1,4 @@
 import time
-from itertools import pairwise
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -29,7 +28,6 @@ from main.schemas import (
     Track,
 )
 from main.security import get_current_user
-from main.tracking import haversine_m
 
 horse_router = APIRouter(
     prefix='/api/v1/horses',
@@ -157,16 +155,58 @@ def get_track(
     if to is not None:
         q = q.where(Position.ts <= to)
     pts = session.scalars(q.order_by(Position.ts)).all()
-    # ponytail: soma crua; com o cavalo parado o erro de 10–30 m do report
-    # infla a distância. Suavizar (média móvel) se isso pesar na análise.
-    dist = sum(
-        haversine_m(a.lat, a.lon, b.lat, b.lon) for a, b in pairwise(pts)
-    )
-    span = pts[-1].ts - pts[0].ts if pts else 0
+    stats = tracking.track_stats(pts)
     return {
         'positions': pts,
-        'distance_m': dist,
-        'avg_speed_kmh': dist / span * 3.6 if span else 0,
+        'distance_m': stats['distance_m'],
+        'avg_speed_kmh': stats['avg_speed_kmh'],
+    }
+
+
+@horse_router.get('/{horse_id}/positions/stats')
+def get_track_stats(
+    horse_id: int,
+    from_: int = Query(alias='from', description='epoch (s)'),
+    to: int = Query(description='epoch (s)'),
+    session: Session = Depends(get_session),
+):
+    """Deslocamento no intervalo [from, to].
+
+    Pela tag: distância (m), velocidade média e máxima (km/h) e aceleração
+    (m/s², variação média da velocidade). Pelo acelerômetro do sensor:
+    intensidade média e máxima do movimento (g; None sem dados).
+    """
+    _horse(session, horse_id)
+    if to <= from_:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, 'Intervalo vazio'
+        )
+    pts = session.scalars(
+        select(Position)
+        .where(
+            Position.horse_id == horse_id,
+            Position.ts >= from_,
+            Position.ts <= to,
+        )
+        .order_by(Position.ts)
+    ).all()
+    acc = session.execute(
+        select(SensorBlock.dur_ms, SensorBlock.v_avg, SensorBlock.v_max).where(
+            SensorBlock.horse_id == horse_id,
+            SensorBlock.kind == 'A',
+            SensorBlock.ts_ms >= from_ * 1000,
+            SensorBlock.ts_ms < to * 1000,
+            SensorBlock.v_avg.is_not(None),
+        )
+    ).all()
+    total = sum(r.dur_ms for r in acc)
+    return {
+        'from': from_,
+        'to': to,
+        'points': len(pts),
+        **tracking.track_stats(pts),
+        'intensity_g': sum(r.v_avg * r.dur_ms for r in acc) / total if total else None,
+        'intensity_max_g': max((r.v_max for r in acc), default=None),
     }
 
 

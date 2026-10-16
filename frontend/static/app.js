@@ -162,6 +162,26 @@ function lineChart(el, series, { x0, x1, gap, min, digits = 2, seconds = false }
     <div class="chart__x"><span>${time(x0)}</span><span>${time((x0 + x1) / 2)}</span><span>${time(x1 - 1)}</span></div>`;
 }
 
+// Acelerômetro em três gráficos empilhados (X, Y, Z), cada um com a própria
+// escala: num gráfico só, eixos com o mesmo valor se escondem um atrás do
+// outro e o Z em 1 g achata os outros dois. series: as três de xyz().
+function xyzCharts(el, series, opts) {
+  if (!series[0].pts.length) {
+    el.innerHTML = '<div class="chart-empty">Sem dados</div>';
+    return;
+  }
+  el.innerHTML = '';
+  series.forEach((s, i) => {
+    const row = document.createElement('div');
+    row.className = 'axis-row';
+    row.innerHTML = '<span class="axis-name"></span><div></div>';
+    row.firstChild.textContent = 'XYZ'[i];
+    row.firstChild.style.color = s.color;
+    el.append(row);
+    lineChart(row.lastChild, [s], { digits: 3, ...opts });
+  });
+}
+
 function listItem(title, sub, action) {
   const row = document.createElement('div');
   row.className = 'list-item';
@@ -918,7 +938,7 @@ const pages = {
       const raw = end ? await api(`api/v1/horses/${horse.id}/sensor/raw?from=${x0}&to=${x1}&points=600`) : { t: [] };
       if (!current()) return;
       accWin = raw.t.length ? [x0, x1] : null;
-      lineChart($('accChart'), xyz(raw), { x0, x1, gap: Math.max(5, step * 3), seconds: w > 0 && w <= 3600 });
+      xyzCharts($('accChart'), xyz(raw), { x0, x1, gap: Math.max(5, step * 3), seconds: w > 0 && w <= 3600 });
       const label = WINS.find(([v]) => v === w)[1];
       const each = step < 60 ? `${num(step, 0)} s` : `${num(step / 60, 1)} min`;
       $('accNote').textContent = `${w ? `${label} com dados no dia` : label}, em g (média a cada ${each}). Toque no gráfico para marcar um padrão.`;
@@ -998,14 +1018,14 @@ const pages = {
       $('markCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       const raw = await api(`api/v1/horses/${horse.id}/sensor/raw?from=${mark.from}&to=${mark.to}&points=1500`);
       if (!alive()) return;
-      lineChart($('markChart'), xyz(raw), { x0: mark.from, x1: mark.to, gap: 0.2, seconds: true });
+      xyzCharts($('markChart'), xyz(raw), { x0: mark.from, x1: mark.to, gap: 0.2, seconds: true });
       drawMarks();
     }
 
     function drawMarks() {
-      const svg = $('markChart').querySelector('svg');
-      if (!svg || !mark) return;
-      svg.querySelectorAll('.mark').forEach((r) => r.remove());
+      const svgs = $('markChart').querySelectorAll('svg');
+      if (!svgs.length || !mark) return;
+      svgs.forEach((svg) => svg.querySelectorAll('.mark').forEach((r) => r.remove()));
       const t0 = mark.from * 1000;
       const width = (mark.to - mark.from) * 1000;
       const rect = (f, t, cls) => {
@@ -1014,7 +1034,7 @@ const pages = {
         if (x1 <= x0) return;
         const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         Object.entries({ x: x0, y: 0, width: x1 - x0, height: 120, class: `mark ${cls}` }).forEach(([k, v]) => r.setAttribute(k, v));
-        svg.prepend(r);
+        svgs.forEach((svg) => svg.prepend(r.cloneNode()));
       };
       for (const l of labels) rect(l.from_ms, l.to_ms, 'mark--saved');
       if (sel) rect(sel.from_ms, sel.to_ms, 'mark--sel');
@@ -1114,7 +1134,7 @@ const pages = {
     // --- padrões e treino ------------------------------------------------
     function renderModel() {
       $('modelInfo').textContent = model
-        ? `Treinado em ${hora(model.created)}. O sensor baixa o modelo no próximo envio (até 10 min).`
+        ? `Treinado em ${hora(model.created)}. O sensor baixa o modelo no próximo envio.`
         : 'Ainda não treinado: marque trechos de cada padrão e clique em Treinar.';
       $('patList').replaceChildren(...patterns.map((p) => {
         const m = model?.metrics?.[String(p.id)];

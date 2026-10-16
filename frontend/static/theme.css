@@ -459,6 +459,8 @@ md-dialog { max-width: min(560px, calc(100vw - 32px)); }
 .dialog-form .label { font-size: 13px; margin: 6px 0 -6px; }
 .dialog-form .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .dialog-form .pair > * { min-width: 0; }
+.dialog-form .trio { display: grid; grid-template-columns: 1fr 1fr 0.9fr; gap: 10px; }
+.dialog-form .trio > * { min-width: 0; }
 .lim-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: -6px; }
 .lim-head .label { margin: 0; }
 .cal-dialog { max-width: min(640px, calc(100vw - 32px)); width: 100%; }

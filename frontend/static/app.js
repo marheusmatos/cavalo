@@ -530,32 +530,11 @@ const pages = {
       el.querySelector('b').textContent = value;
       return el;
     }));
+    // Limites de alerta, frequência de cada sensor e intervalo de envio (um
+    // quadro só), e a calibração de cada sinal (botão Calibrar de cada linha).
     const limUrl = `api/v1/horses/${horse.id}/sensor/alerts`;
-    let limits = await api(limUrl);
-    $('limitsSum').textContent = limitsSummary(limits);
-    const limDlg = $('limDialog');
-    $('cLimits').addEventListener('click', () => {
-      for (const [id, key] of Object.entries(LIM_FIELDS)) $(id).value = limits[key] ?? '';
-      limDlg.show();
-    });
-    $('limCancel').addEventListener('click', () => limDlg.close());
-    $('limSave').addEventListener('click', async () => {
-      const body = {};
-      for (const [id, key] of Object.entries(LIM_FIELDS)) body[key] = $(id).value === '' ? null : Number($(id).value);
-      try {
-        limits = await api(limUrl, { method: 'PUT', json: body });
-      } catch (e) {
-        toast(e.message);
-        return;
-      }
-      $('limitsSum').textContent = limitsSummary(limits);
-      limDlg.close();
-      toast(horse.sensor_id ? 'Limites salvos. O sensor recebe no próximo envio.' : 'Limites salvos. Vincule um sensor para valerem.');
-    });
-    // Ajustes do sensor: frequência de obtenção e intervalo de envio (cartão
-    // Sensor) e calibração de cada sinal (dentro de Limites de alerta).
     const setUrl = `api/v1/horses/${horse.id}/sensor/settings`;
-    let sens = await api(setUrl);
+    let [limits, sens] = await Promise.all([api(limUrl), api(setUrl)]);
     const decimal = (v) => (v.trim() === '' ? null : Number(v.replace(',', '.')));
     const signed = (v, d) => `${v > 0 ? '+' : ''}${num(v, d)}`;
     const rotText = () => (sens.rot_pending ? `Calibrada em ${hora(sens.rot_at)}; o sensor aplica no próximo envio.`
@@ -563,45 +542,59 @@ const pages = {
         : 'Sem calibração: as leituras saem como o sensor mede.');
     const sensSummary = () => {
       const parts = [
-        sens.accel_hz && `${sens.accel_hz} leituras/s`,
+        sens.accel_hz && `movimento a ${sens.accel_hz}/s`,
+        sens.temp_s && `temperatura ${num(60 / sens.temp_s, 1)}/min`,
         sens.upload_s && `envio a cada ${num(sens.upload_s / 60, 1)} min`,
         sens.bpm_offset && `batimentos ${signed(sens.bpm_offset, 0)} bpm`,
         sens.temp_offset && `temperatura ${signed(sens.temp_offset, 1)} °C`,
         sens.mov_gain && `movimento ×${num(sens.mov_gain)}`,
         sens.rot && (sens.rot_pending ? 'orientação aguardando o sensor' : 'orientação calibrada'),
       ].filter(Boolean);
-      $('sensorSum').textContent = horse.sensor_id
-        ? (parts.length ? parts.join(' · ') : 'Usando o config.txt do cartão')
-        : 'Nenhum sensor vinculado a este cavalo';
+      $('limitsSum').textContent = [limitsSummary(limits), ...parts].join(' · ');
     };
     sensSummary();
-
-    const sensDlg = $('sensDialog');
-    const hzInfo = () => {
-      const hz = decimal($('sensHz').value);
-      $('sensHzInfo').textContent = hz
-        ? `Acelerômetro: ${hz} leituras/s · temperatura: a cada 2 s (o mais rápido que o sensor mede) · batimentos: 25/s (o mínimo para achar o pulso).${hz !== 50 ? ' Os padrões de movimento só funcionam a 50/s. Ao mudar, o sensor reinicia no próximo envio.' : ''}`
-        : '';
+    const limDlg = $('limDialog');
+    const hzNote = () => {
+      const hz = decimal($('limMovHz').value);
+      $('limHzNote').textContent = hz && hz !== 50
+        ? 'Os padrões de movimento só funcionam a 50 leituras/s. Ao mudar, o sensor reinicia no próximo envio.' : '';
     };
-    $('sensHz').addEventListener('input', hzInfo);
-    $('cSensor').addEventListener('click', () => {
-      $('sensHz').value = sens.accel_hz ? String(sens.accel_hz) : '';
-      $('sensUp').value = sens.upload_s ? String(sens.upload_s / 60) : '';
-      hzInfo();
-      sensDlg.show();
+    $('limMovHz').addEventListener('input', hzNote);
+    $('cLimits').addEventListener('click', () => {
+      for (const [id, key] of Object.entries(LIM_FIELDS)) $(id).value = limits[key] ?? '';
+      $('limMovHz').value = sens.accel_hz ? String(sens.accel_hz) : '';
+      $('limTempHz').value = sens.temp_s ? num(60 / sens.temp_s, 1) : '';
+      $('limUp').value = sens.upload_s ? num(sens.upload_s / 60, 1) : '';
+      hzNote();
+      limDlg.show();
     });
-    $('sensCancel').addEventListener('click', () => sensDlg.close());
-    $('sensSave').addEventListener('click', async () => {
-      const up = decimal($('sensUp').value);
+    $('limCancel').addEventListener('click', () => limDlg.close());
+    $('limSave').addEventListener('click', async () => {
+      const body = {};
+      for (const [id, key] of Object.entries(LIM_FIELDS)) body[key] = $(id).value === '' ? null : Number($(id).value);
+      const perMin = decimal($('limTempHz').value);
+      const up = decimal($('limUp').value);
+      if ([perMin, up, decimal($('limMovHz').value)].some(Number.isNaN) || (perMin != null && !(perMin > 0 && perMin <= 30))) {
+        toast('Temperatura: de 0,1 a 30 leituras por minuto (o sensor mede no máximo a cada 2 s)');
+        return;
+      }
       try {
-        sens = await api(setUrl, { method: 'PUT', json: { accel_hz: decimal($('sensHz').value), upload_s: up && Math.round(up * 60) } });
+        limits = await api(limUrl, { method: 'PUT', json: body });
+        sens = await api(setUrl, {
+          method: 'PUT',
+          json: {
+            accel_hz: decimal($('limMovHz').value),
+            temp_s: perMin && Math.max(2, Math.round(60 / perMin)),
+            upload_s: up && Math.round(up * 60),
+          },
+        });
       } catch (e) {
         toast(e.message);
         return;
       }
       sensSummary();
-      sensDlg.close();
-      toast('Ajustes salvos. O sensor recebe no próximo envio.');
+      limDlg.close();
+      toast(horse.sensor_id ? 'Salvo. O sensor recebe no próximo envio.' : 'Salvo. Vincule um sensor para valer.');
     });
 
     // Calibração: a curva das últimas 24 h sem a calibração atual (base),

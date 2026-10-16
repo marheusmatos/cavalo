@@ -50,6 +50,22 @@ class Horse(Base):
     alert_temp_max = Column(Float, nullable=True)
     alert_mov_max = Column(Float, nullable=True)
     alert_ver = Column(Integer, nullable=False, default=0, server_default='0')
+    # Ajustes do sensor pelo portal (None = vale o config.txt do cartão). Vão
+    # no mesmo /alertas.txt, com a mesma versão (alert_ver).
+    sensor_accel_hz = Column(Integer, nullable=True)
+    sensor_upload_s = Column(Integer, nullable=True)
+    sensor_temp_s = Column(Integer, nullable=True)
+    sensor_temp_offset = Column(Float, nullable=True)  # °C somados à leitura
+    # Orientação: matriz 3x3 (9 números, linha a linha) que o ESP32 aplica às
+    # leituras para o Z ficar na gravidade. rot_at/rot_ver: quando ela mudou
+    # e em que versão do arquivo; sent_at/sent_ver: quando o ESP32 baixou o
+    # arquivo pela última vez e qual versão (dali em diante as leituras já
+    # chegam giradas).
+    sensor_rot = Column(String(200), nullable=True)
+    sensor_rot_at = Column(Integer, nullable=True)
+    sensor_rot_ver = Column(Integer, nullable=True)
+    sensor_sent_at = Column(Integer, nullable=True)
+    sensor_sent_ver = Column(Integer, nullable=True)
 
     def __repr__(self):
         return f"<Horse(id={self.id}, name='{self.name}')>"

@@ -130,6 +130,22 @@ class AlertLimits(BaseModel):
         return self
 
 
+class SensorSettings(BaseModel):
+    """Ajustes do sensor pelo portal; None = vale o config.txt do cartão."""
+
+    accel_hz: Optional[Literal[10, 20, 25, 50]] = None
+    upload_s: Optional[int] = Field(default=None, ge=60, le=3600)
+    temp_s: Optional[int] = Field(default=None, ge=2, le=3600)
+    temp_offset: Optional[float] = Field(default=None, ge=-10, le=10)
+
+
+class SensorSettingsPublic(SensorSettings):
+    ver: int
+    rot: Optional[list[float]]  # None = sem calibração de orientação
+    rot_at: Optional[int]
+    rot_pending: bool  # calibrada, mas o sensor ainda não baixou
+
+
 class AlertLimitsPublic(AlertLimits):
     ver: int  # muda a cada alteração; o ESP32 baixa de novo quando muda
 

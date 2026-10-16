@@ -252,3 +252,44 @@ def ingest(session, horse_id, contact, body):
         result['stored'] += 1
     session.commit()
     return result
+
+
+IDENTITY = (1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
+
+
+def gravity_rotation(g):
+    """Matriz 3x3 (9 números, linha a linha) que leva o vetor `g` ao +Z.
+
+    `g` é a média do acelerômetro com o sensor parado: só a gravidade. Depois
+    de girar, o Z mede +1 g parado. O giro em torno do Z (para onde apontam X
+    e Y) fica livre: é o menor giro que alinha a gravidade (Rodrigues).
+    """
+    n = math.sqrt(sum(v * v for v in g))
+    ax, ay, az = (v / n for v in g)
+    # eixo = a × z, cos = a · z
+    vx, vy, vz = ay, -ax, 0.0
+    c = az
+    s2 = vx * vx + vy * vy
+    if s2 < 1e-12:  # já alinhado, ou de cabeça para baixo (gira 180° no X)
+        return IDENTITY if c > 0 else (1.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, -1.0)
+    k = (1 - c) / s2
+    return (
+        1 - k * vy * vy, k * vx * vy, vy,
+        k * vx * vy, 1 - k * vx * vx, -vx,
+        -vy, vx, 1 - k * s2,
+    )
+
+
+def matmul(a, b):
+    """Produto de duas matrizes 3x3 dadas como 9 números."""
+    return tuple(
+        sum(a[3 * i + k] * b[3 * k + j] for k in range(3))
+        for i in range(3)
+        for j in range(3)
+    )
+
+
+def axis_means(block):
+    """Média de x, y e z (em g) de um bloco 'A'."""
+    v = decode(block)
+    return [sum(v[c :: block.ch]) / block.n * block.scale for c in range(3)]

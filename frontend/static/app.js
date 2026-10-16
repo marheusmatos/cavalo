@@ -532,6 +532,70 @@ const pages = {
       limDlg.close();
       toast(horse.sensor_id ? 'Limites salvos. O sensor recebe no próximo envio.' : 'Limites salvos. Vincule um sensor para valerem.');
     });
+    // Ajustes do sensor (frequência, intervalos, temperatura, orientação).
+    const setUrl = `api/v1/horses/${horse.id}/sensor/settings`;
+    let sens = await api(setUrl);
+    const rotText = () => (sens.rot_pending ? `Calibrada em ${hora(sens.rot_at)}; o sensor aplica no próximo envio.`
+      : sens.rot ? `Calibrada em ${hora(sens.rot_at)}: o Z é o eixo da gravidade.`
+        : 'Sem calibração: as leituras saem como o sensor mede.');
+    const sensSummary = () => {
+      const parts = [
+        sens.upload_s && `envio a cada ${num(sens.upload_s / 60, 1)} min`,
+        sens.accel_hz && `${sens.accel_hz} Hz`,
+        sens.temp_s && `temperatura a cada ${sens.temp_s} s`,
+        sens.temp_offset && `ajuste ${sens.temp_offset > 0 ? '+' : ''}${num(sens.temp_offset, 1)} °C`,
+        sens.rot && (sens.rot_pending ? 'orientação aguardando o sensor' : 'orientação calibrada'),
+      ].filter(Boolean);
+      $('sensorSum').textContent = horse.sensor_id
+        ? (parts.length ? parts.join(' · ') : 'Usando o config.txt do cartão')
+        : 'Nenhum sensor vinculado a este cavalo';
+    };
+    sensSummary();
+    const sensDlg = $('sensDialog');
+    await fillSelect($('sensHz'), [option('', 'Padrão do cartão'), ...[50, 25, 20, 10].map((hz) => option(hz, `${hz} leituras por segundo`))]);
+    const hzWarn = () => { $('sensHzWarn').hidden = !$('sensHz').value || $('sensHz').value === '50'; };
+    $('sensHz').addEventListener('change', hzWarn);
+    $('cSensor').addEventListener('click', () => {
+      $('sensHz').value = sens.accel_hz ? String(sens.accel_hz) : '';
+      $('sensUp').value = sens.upload_s ? String(sens.upload_s / 60) : '';
+      $('sensTemp').value = sens.temp_s ?? '';
+      $('sensOff').value = sens.temp_offset ?? '';
+      $('sensRot').textContent = rotText();
+      $('sensUncal').hidden = !sens.rot;
+      hzWarn();
+      sensDlg.show();
+    });
+    $('sensCancel').addEventListener('click', () => sensDlg.close());
+    $('sensSave').addEventListener('click', async () => {
+      const n = (id) => ($(id).value === '' ? null : Number($(id).value));
+      try {
+        sens = await api(setUrl, {
+          method: 'PUT',
+          json: { accel_hz: n('sensHz'), upload_s: n('sensUp') && Math.round(n('sensUp') * 60), temp_s: n('sensTemp'), temp_offset: n('sensOff') },
+        });
+      } catch (e) {
+        toast(e.message);
+        return;
+      }
+      sensSummary();
+      sensDlg.close();
+      toast('Ajustes salvos. O sensor recebe no próximo envio.');
+    });
+    for (const [id, method] of [['sensCal', 'POST'], ['sensUncal', 'DELETE']]) {
+      $(id).addEventListener('click', async () => {
+        try {
+          sens = await api(`api/v1/horses/${horse.id}/sensor/calibrate`, { method });
+        } catch (e) {
+          toast(e.message);
+          return;
+        }
+        $('sensRot').textContent = rotText();
+        $('sensUncal').hidden = !sens.rot;
+        sensSummary();
+        toast(method === 'POST' ? 'Orientação calibrada. O sensor aplica no próximo envio.' : 'Calibração desfeita.');
+      });
+    }
+
     for (const [id, page] of [['cLoc', 'localizacao'], ['cBio', 'biometria'], ['cAtiv', 'atividade'], ['cNutri', 'nutricao']]) {
       $(id).href = `#/${page}/${horse.id}`;
     }

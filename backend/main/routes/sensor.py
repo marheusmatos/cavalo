@@ -25,6 +25,8 @@ from main.schemas import (
     AlertLimits,
     AlertLimitsPublic,
     DeviceAlert,
+    SensorSettings,
+    SensorSettingsPublic,
     norm_sensor_id,
 )
 from main.security import get_current_user
@@ -153,6 +155,9 @@ def device_limits(
     headers = {'X-Cerca': f'{out[0]}/{out[1]}'} if out else None
     if horse.alert_ver == ver:
         return Response(status_code=status.HTTP_204_NO_CONTENT, headers=headers)
+    horse.sensor_sent_at = int(time.time())  # daqui em diante, ajustes novos
+    horse.sensor_sent_ver = horse.alert_ver
+    session.commit()
     return Response(
         alerts.alert_file(horse), media_type='text/plain', headers=headers
     )
@@ -329,3 +334,105 @@ def detections(
         'counts': [{'code': c, 'name': n, 'n': counts.get(c, 0)} for c, n in sorted(names.items())],
         'events': events[::-1][:200],  # mais recentes primeiro
     }
+
+
+# Calibração: o minuto mais parado do dia, com o pico de intensidade abaixo
+# disto (g), dá a direção da gravidade.
+STILL_MAX_G = 0.15
+
+
+def _settings_out(horse):
+    return {
+        'accel_hz': horse.sensor_accel_hz,
+        'upload_s': horse.sensor_upload_s,
+        'temp_s': horse.sensor_temp_s,
+        'temp_offset': horse.sensor_temp_offset,
+        'ver': horse.alert_ver,
+        'rot': [float(v) for v in horse.sensor_rot.split(',')] if horse.sensor_rot else None,
+        'rot_at': horse.sensor_rot_at,
+        'rot_pending': _rot_pending(horse),
+    }
+
+
+def _rot_pending(horse):
+    return bool(horse.sensor_rot_ver) and (horse.sensor_sent_ver or 0) < horse.sensor_rot_ver
+
+
+@readings_router.get('/settings', response_model=SensorSettingsPublic)
+def get_settings(horse_id: int, session: Session = Depends(get_session)):
+    """Ajustes do sensor (frequência, intervalos, temperatura, orientação)."""
+    _check_horse(session, horse_id)
+    return _settings_out(session.get(Horse, horse_id))
+
+
+@readings_router.put('/settings', response_model=SensorSettingsPublic)
+def put_settings(
+    horse_id: int, data: SensorSettings, session: Session = Depends(get_session)
+):
+    """Troca os ajustes; o ESP32 baixa no próximo contato (e reinicia se a
+    frequência do acelerômetro mudou)."""
+    _check_horse(session, horse_id)
+    horse = session.get(Horse, horse_id)
+    for key, value in data.model_dump().items():
+        setattr(horse, f'sensor_{key}', value)
+    alerts.bump(horse)
+    session.commit()
+    return _settings_out(horse)
+
+
+@readings_router.post('/calibrate', response_model=SensorSettingsPublic)
+def calibrate(horse_id: int, session: Session = Depends(get_session)):
+    """Orientação: gira as leituras para o Z ficar na gravidade.
+
+    Usa o minuto mais parado das últimas 24 h. Leituras de antes de o sensor
+    baixar a calibração anterior estão em outra orientação: não servem.
+    """
+    _check_horse(session, horse_id)
+    horse = session.get(Horse, horse_id)
+    if _rot_pending(horse):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            'O sensor ainda não baixou a última calibração; tente depois do próximo envio',
+        )
+    since = int(time.time()) - 24 * 3600
+    if horse.sensor_rot_ver:  # já girou alguma vez: só leituras depois do download
+        since = max(since, horse.sensor_sent_at)
+    block = session.scalars(
+        select(SensorBlock)
+        .where(
+            SensorBlock.horse_id == horse_id,
+            SensorBlock.kind == 'A',
+            SensorBlock.ts_ms >= since * 1000,
+            SensorBlock.v_max.is_not(None),
+        )
+        .order_by(SensorBlock.v_max)
+        .limit(1)
+    ).first()
+    if block is None or block.v_max > STILL_MAX_G:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            'Nenhum minuto com o sensor parado nas últimas 24 h: deixe o cavalo '
+            '(ou a placa) parado por 1 min e calibre depois do próximo envio',
+        )
+    old = [float(v) for v in horse.sensor_rot.split(',')] if horse.sensor_rot else sensor.IDENTITY
+    rot = sensor.matmul(sensor.gravity_rotation(sensor.axis_means(block)), old)
+    horse.sensor_rot = ','.join(f'{v:.5f}' for v in rot)
+    horse.sensor_rot_at = int(time.time())
+    alerts.bump(horse)
+    horse.sensor_rot_ver = horse.alert_ver
+    session.commit()
+    return _settings_out(horse)
+
+
+@readings_router.delete('/calibrate', response_model=SensorSettingsPublic)
+def uncalibrate(horse_id: int, session: Session = Depends(get_session)):
+    """Volta às leituras do jeito que o sensor mede (sem girar)."""
+    _check_horse(session, horse_id)
+    horse = session.get(Horse, horse_id)
+    if horse.sensor_rot:
+        horse.sensor_rot = None
+        horse.sensor_rot_at = int(time.time())
+        alerts.bump(horse)
+        horse.sensor_rot_ver = horse.alert_ver
+        session.commit()
+    return _settings_out(horse)

@@ -469,3 +469,47 @@ def test_fora_da_cerca_vai_no_cabecalho_para_o_esp32(auth):
     dist, raio = map(int, r.headers['x-cerca'].split('/'))
     assert (raio, 540 < dist < 570) == (150, True)
     assert alerts.describe('C', dist, raio).startswith('Fora da cerca virtual')
+
+
+def test_ajustes_do_sensor_e_calibracao_de_orientacao(auth):
+    mac = '0a0b0c0d0e30'
+    horse = client.post(
+        '/api/v1/horses/', headers=auth, json={'name': 'Deitado', 'sensor_id': mac}
+    ).json()
+    url = f'/api/v1/horses/{horse["id"]}/sensor'
+    dev = {'X-Sensor-Id': mac, 'X-Sensor-Key': settings.SENSOR_KEY}
+
+    s = client.get(f'{url}/settings', headers=auth).json()
+    assert (s['accel_hz'], s['rot'], s['rot_pending']) == (None, None, False)
+    assert client.put(f'{url}/settings', headers=auth, json={'accel_hz': 30}).status_code == 422
+    assert client.put(f'{url}/settings', headers=auth, json={'upload_s': 10}).status_code == 422
+    s = client.put(
+        f'{url}/settings',
+        headers=auth,
+        json={'accel_hz': 25, 'upload_s': 300, 'temp_s': 30, 'temp_offset': -0.5},
+    ).json()
+    assert s['ver'] > 0
+    lines = client.get('/api/v1/device/alerts', params={'ver': 0}, headers=dev).text.splitlines()
+    assert {'accel_hz=25', 'upload_s=300', 'temp_s=30', 'temp_off=-0.5'} <= set(lines)
+
+    # Sem leitura parada não calibra.
+    assert client.post(f'{url}/calibrate', headers=auth).status_code == 422
+    # Sensor preso de lado: a gravidade cai no Y.
+    body = header(3) + record('A', 60_000, 60_000, [0, 4096, 0] * 3000, ch=3)
+    assert send(body, 3, 61_000, mac=mac).status_code == 200
+    s = client.post(f'{url}/calibrate', headers=auth).json()
+    r = s['rot']
+    assert [sum(r[3 * i + k] * (0, 1, 0)[k] for k in range(3)) for i in range(3)] == pytest.approx([0, 0, 1], abs=1e-4)
+    assert s['rot_pending'] is True
+    # Antes de o sensor baixar, outra calibração misturaria orientações.
+    assert client.post(f'{url}/calibrate', headers=auth).status_code == 409
+    text = client.get('/api/v1/device/alerts', params={'ver': 0}, headers=dev).text
+    assert f'rot={",".join(f"{v:.5f}" for v in r)}' in text
+    s = client.get(f'{url}/settings', headers=auth).json()
+    assert s['rot_pending'] is False
+    # O minuto parado era de antes: na orientação nova ainda não há leitura.
+    assert client.post(f'{url}/calibrate', headers=auth).status_code == 422
+
+    s = client.delete(f'{url}/calibrate', headers=auth).json()
+    assert s['rot'] is None
+    assert 'rot=' not in client.get('/api/v1/device/alerts', params={'ver': 0}, headers=dev).text

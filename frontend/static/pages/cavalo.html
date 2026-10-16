@@ -23,6 +23,15 @@
     <span class="material-symbols-outlined muted">chevron_right</span>
   </button>
 
+  <button type="button" class="card card--tap limits" id="cSensor">
+    <span class="material-symbols-outlined" style="color:var(--md-sys-color-primary)">sensors</span>
+    <span style="flex:1;min-width:0">
+      <b>Sensor</b>
+      <span id="sensorSum" class="muted"></span>
+    </span>
+    <span class="material-symbols-outlined muted">chevron_right</span>
+  </button>
+
   <div class="detail-grid">
     <a class="card card--tap tile" id="cLoc">
       <div class="tile__head" style="color:var(--md-sys-color-primary)"><span class="material-symbols-outlined">location_on</span><span>Localização</span></div>
@@ -36,7 +45,7 @@
       <div class="tile__spacer"></div>
       <div class="tile__nums">
         <div><div class="big-num big-num--sm">—</div><div class="muted">bpm FC</div></div>
-        <div><div class="big-num big-num--sm">—</div><div class="muted">lactato</div></div>
+        <div><div class="big-num big-num--sm">—</div><div class="muted">°C</div></div>
       </div>
       <div class="tile__sub muted">Sem sensor</div>
     </a>
@@ -59,6 +68,31 @@
     </a>
   </div>
 </section>
+
+<md-dialog id="sensDialog">
+  <div slot="headline">Sensor</div>
+  <form slot="content" method="dialog" class="dialog-form">
+    <div class="muted" style="font-size:13px">Valem por cima do config.txt do cartão. Em branco, vale o que está no cartão. O sensor recebe no próximo envio.</div>
+    <md-outlined-select id="sensHz" label="Frequência do acelerômetro"></md-outlined-select>
+    <div id="sensHzWarn" class="muted" style="font-size:12px;color:var(--status-warn)" hidden>Os padrões de movimento só funcionam a 50 Hz. Ao mudar a frequência, o sensor reinicia no próximo envio.</div>
+    <div class="pair">
+      <md-outlined-text-field id="sensUp" label="Envio a cada (min)" type="number" min="1" max="60" step="1"></md-outlined-text-field>
+      <md-outlined-text-field id="sensTemp" label="Temperatura (s)" type="number" min="2" max="3600" step="1"></md-outlined-text-field>
+    </div>
+    <md-outlined-text-field id="sensOff" label="Ajuste da temperatura (°C)" type="number" min="-10" max="10" step="0.1" supporting-text="Somado à leitura, para bater com um termômetro de referência"></md-outlined-text-field>
+    <div class="label muted">Orientação</div>
+    <div id="sensRot" class="muted" style="font-size:13px"></div>
+    <div class="row" style="justify-content:flex-start;gap:8px">
+      <md-outlined-button id="sensCal">Calibrar agora</md-outlined-button>
+      <md-text-button id="sensUncal">Desfazer</md-text-button>
+    </div>
+    <div class="muted" style="font-size:12px">Usa o minuto em que o sensor ficou mais parado nas últimas 24 h e gira as leituras para o eixo Z ficar na gravidade (+1 g parado). Calibre com o sensor já preso no cavalo; depois, treine os padrões de movimento de novo.</div>
+  </form>
+  <div slot="actions">
+    <md-text-button id="sensCancel">Cancelar</md-text-button>
+    <md-filled-button id="sensSave">Salvar</md-filled-button>
+  </div>
+</md-dialog>
 
 <md-dialog id="limDialog">
   <div slot="headline">Limites de alerta</div>

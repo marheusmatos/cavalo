@@ -1,9 +1,10 @@
 """Alertas do sensor: limites por cavalo e e-mail ao veterinário.
 
 Quem decide se uma leitura passou do limite é o ESP32 (para piscar o LED na
-hora, sem esperar o próximo contato). Os limites são editados no portal e
-viajam para o cartão SD como /alertas.txt; aqui só se monta esse arquivo,
-registra o alerta que o ESP32 manda e avisa o veterinário.
+hora, sem esperar o próximo contato). Os limites, e também os ajustes do
+sensor (frequência, intervalos, temperatura, orientação), são editados no
+portal e viajam para o cartão SD como /alertas.txt; aqui se monta esse
+arquivo, registra o alerta que o ESP32 manda e avisa o veterinário.
 """
 
 import logging
@@ -28,6 +29,13 @@ FILE_KEYS = {
     'temp_max': 'alert_temp_max',
     'mov_max': 'alert_mov_max',
 }
+# ajustes do sensor no mesmo arquivo: chave -> coluna
+SENSOR_KEYS = {
+    'accel_hz': 'sensor_accel_hz',
+    'upload_s': 'sensor_upload_s',
+    'temp_s': 'sensor_temp_s',
+    'temp_off': 'sensor_temp_offset',
+}
 # tipo -> (nome, unidade, casas decimais)
 KINDS = {
     'H': ('Batimentos', 'bpm', 0),
@@ -47,20 +55,27 @@ def set_limits(horse, data):
     """Grava os limites e troca a versão (o ESP32 baixa no próximo contato)."""
     for key, col in FILE_KEYS.items():
         setattr(horse, col, data.get(key))
+    bump(horse)
+
+
+def bump(horse):
+    """Nova versão do /alertas.txt: o ESP32 baixa no próximo contato."""
     horse.alert_ver = max(horse.alert_ver + 1, int(time.time()))
 
 
 def alert_file(horse):
     """Conteúdo do /alertas.txt do cartão."""
     lines = [
-        '# Limites de alerta, baixados do servidor (portal > cavalo).',
+        '# Limites de alerta e ajustes do sensor, baixados do servidor (portal).',
         '# Nao edite: o ESP32 troca este arquivo quando eles mudam.',
         f'versao={horse.alert_ver}',
     ]
-    for key, col in FILE_KEYS.items():
+    for key, col in {**FILE_KEYS, **SENSOR_KEYS}.items():
         value = getattr(horse, col)
         if value is not None:
             lines.append(f'{key}={value:g}')
+    if horse.sensor_rot:
+        lines.append(f'rot={horse.sensor_rot}')
     return '\n'.join(lines) + '\n'
 
 

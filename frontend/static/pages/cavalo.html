@@ -72,21 +72,9 @@
 <md-dialog id="sensDialog">
   <div slot="headline">Sensor</div>
   <form slot="content" method="dialog" class="dialog-form">
-    <div class="muted" style="font-size:13px">Valem por cima do config.txt do cartão. Em branco, vale o que está no cartão. O sensor recebe no próximo envio.</div>
-    <md-outlined-select id="sensHz" label="Frequência do acelerômetro"></md-outlined-select>
-    <div id="sensHzWarn" class="muted" style="font-size:12px;color:var(--status-warn)" hidden>Os padrões de movimento só funcionam a 50 Hz. Ao mudar a frequência, o sensor reinicia no próximo envio.</div>
-    <div class="pair">
-      <md-outlined-text-field id="sensUp" label="Envio a cada (min)" type="number" min="1" max="60" step="1"></md-outlined-text-field>
-      <md-outlined-text-field id="sensTemp" label="Temperatura (s)" type="number" min="2" max="3600" step="1"></md-outlined-text-field>
-    </div>
-    <md-outlined-text-field id="sensOff" label="Ajuste da temperatura (°C)" type="number" min="-10" max="10" step="0.1" supporting-text="Somado à leitura, para bater com um termômetro de referência"></md-outlined-text-field>
-    <div class="label muted">Orientação</div>
-    <div id="sensRot" class="muted" style="font-size:13px"></div>
-    <div class="row" style="justify-content:flex-start;gap:8px">
-      <md-outlined-button id="sensCal">Calibrar agora</md-outlined-button>
-      <md-text-button id="sensUncal">Desfazer</md-text-button>
-    </div>
-    <div class="muted" style="font-size:12px">Usa o minuto em que o sensor ficou mais parado nas últimas 24 h e gira as leituras para o eixo Z ficar na gravidade (+1 g parado). Calibre com o sensor já preso no cavalo; depois, treine os padrões de movimento de novo.</div>
+    <md-outlined-text-field id="sensHz" label="Frequência de obtenção dos dados (leituras por segundo)" type="text" inputmode="numeric" supporting-text="10, 20, 25, 40 ou 50. Em branco, vale o config.txt do cartão."></md-outlined-text-field>
+    <div id="sensHzInfo" class="muted" style="font-size:12px"></div>
+    <md-outlined-text-field id="sensUp" label="Intervalo de envio (min)" type="text" inputmode="numeric"></md-outlined-text-field>
   </form>
   <div slot="actions">
     <md-text-button id="sensCancel">Cancelar</md-text-button>
@@ -98,22 +86,55 @@
   <div slot="headline">Limites de alerta</div>
   <form slot="content" method="dialog" class="dialog-form">
     <div class="muted" style="font-size:13px">Fora destes limites o LED do sensor pisca sem parar e o veterinário recebe um e-mail. Deixe em branco para não alertar.</div>
-    <div class="label muted">Batimentos (bpm)</div>
+    <div class="lim-head"><span class="label muted">Batimentos (bpm)</span><md-text-button class="cal-btn" data-k="H"><span slot="icon" class="material-symbols-outlined">tune</span>Calibrar</md-text-button></div>
     <div class="pair">
       <md-outlined-text-field id="limBpmMin" label="Mínimo" type="number" step="1"></md-outlined-text-field>
       <md-outlined-text-field id="limBpmMax" label="Máximo" type="number" step="1"></md-outlined-text-field>
     </div>
-    <div class="label muted">Temperatura (°C)</div>
+    <div class="lim-head"><span class="label muted">Temperatura (°C)</span><md-text-button class="cal-btn" data-k="T"><span slot="icon" class="material-symbols-outlined">tune</span>Calibrar</md-text-button></div>
     <div class="pair">
       <md-outlined-text-field id="limTempMin" label="Mínima" type="number" step="0.1"></md-outlined-text-field>
       <md-outlined-text-field id="limTempMax" label="Máxima" type="number" step="0.1"></md-outlined-text-field>
     </div>
-    <div class="label muted">Movimento</div>
+    <div class="lim-head"><span class="label muted">Movimento</span><md-text-button class="cal-btn" data-k="A"><span slot="icon" class="material-symbols-outlined">tune</span>Calibrar</md-text-button></div>
     <md-outlined-text-field id="limMovMax" label="Intensidade máxima (g, média de 10 s)" type="number" step="0.1"></md-outlined-text-field>
-    <div class="muted" style="font-size:12px">O sensor recebe os limites novos no próximo envio de dados (até 10 minutos).</div>
+    <div class="muted" style="font-size:12px">O sensor recebe os limites novos no próximo envio de dados.</div>
   </form>
   <div slot="actions">
     <md-text-button id="limCancel">Cancelar</md-text-button>
     <md-filled-button id="limSave">Salvar</md-filled-button>
+  </div>
+</md-dialog>
+
+<!-- Calibração de um sinal: a prévia refaz a curva a cada mudança do campo. -->
+<md-dialog id="calDialog" class="cal-dialog">
+  <div slot="headline" id="calTitle">Calibrar</div>
+  <form slot="content" method="dialog" class="dialog-form">
+    <md-outlined-text-field id="calVal" type="text" inputmode="decimal"></md-outlined-text-field>
+    <div id="calOrient" hidden>
+      <div class="label muted">Orientação</div>
+      <div id="calRot" class="muted" style="font-size:13px;margin:6px 0"></div>
+      <div class="row" style="justify-content:flex-start;gap:8px">
+        <md-outlined-button id="calRotDo">Calibrar orientação</md-outlined-button>
+        <md-text-button id="calRotUndo">Desfazer</md-text-button>
+      </div>
+      <div class="muted" style="font-size:12px;margin-top:6px">Usa o minuto mais parado das últimas 24 h e gira as leituras para o eixo Z ficar na gravidade (+1 g parado). Não muda a intensidade. Depois, treine os padrões de movimento de novo.</div>
+    </div>
+    <div>
+      <div class="chart-head" style="align-items:center">
+        <span class="muted" style="font-size:12px">Últimas 24 h, média por minuto</span>
+        <span class="axis-legend">
+          <span style="color:var(--md-sys-color-primary)">● calibrada</span>
+          <span class="muted">● atual</span>
+          <span style="color:#FF3B30">● limite / alerta</span>
+        </span>
+      </div>
+      <div id="calChart"><div class="chart-empty">Carregando…</div></div>
+    </div>
+    <div id="calNote" style="font-size:13px"></div>
+  </form>
+  <div slot="actions">
+    <md-text-button id="calCancel">Cancelar</md-text-button>
+    <md-filled-button id="calSave">Salvar</md-filled-button>
   </div>
 </md-dialog>

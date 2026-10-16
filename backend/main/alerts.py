@@ -35,6 +35,8 @@ SENSOR_KEYS = {
     'upload_s': 'sensor_upload_s',
     'temp_s': 'sensor_temp_s',
     'temp_off': 'sensor_temp_offset',
+    'bpm_off': 'sensor_bpm_offset',
+    'mov_gain': 'sensor_mov_gain',
 }
 # tipo -> (nome, unidade, casas decimais)
 KINDS = {

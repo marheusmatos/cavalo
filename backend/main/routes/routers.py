@@ -176,7 +176,7 @@ def get_track_stats(
     (m/s², variação média da velocidade). Pelo acelerômetro do sensor:
     intensidade média e máxima do movimento (g; None sem dados).
     """
-    _horse(session, horse_id)
+    horse = _horse(session, horse_id)
     if to <= from_:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, 'Intervalo vazio'
@@ -200,13 +200,14 @@ def get_track_stats(
         )
     ).all()
     total = sum(r.dur_ms for r in acc)
+    k = horse.sensor_mov_gain or 1  # calibração da intensidade
     return {
         'from': from_,
         'to': to,
         'points': len(pts),
         **tracking.track_stats(pts),
-        'intensity_g': sum(r.v_avg * r.dur_ms for r in acc) / total if total else None,
-        'intensity_max_g': max((r.v_max for r in acc), default=None),
+        'intensity_g': k * sum(r.v_avg * r.dur_ms for r in acc) / total if total else None,
+        'intensity_max_g': k * max(r.v_max for r in acc) if acc else None,
     }
 
 

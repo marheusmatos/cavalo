@@ -56,6 +56,10 @@ class Horse(Base):
     sensor_upload_s = Column(Integer, nullable=True)
     sensor_temp_s = Column(Integer, nullable=True)
     sensor_temp_offset = Column(Float, nullable=True)  # °C somados à leitura
+    sensor_bpm_offset = Column(Float, nullable=True)  # bpm somados à leitura
+    # Fator da intensidade do movimento: vale no alerta do ESP32 e nos
+    # gráficos (aplicado na leitura; os dados brutos não mudam).
+    sensor_mov_gain = Column(Float, nullable=True)
     # Orientação: matriz 3x3 (9 números, linha a linha) que o ESP32 aplica às
     # leituras para o Z ficar na gravidade. rot_at/rot_ver: quando ela mudou
     # e em que versão do arquivo; sent_at/sent_ver: quando o ESP32 baixou o

@@ -144,7 +144,7 @@ function lineChart(el, series, { x0, x1, gap, min, digits = 2, seconds = false }
   hi += (hi - lo) * 0.08;
   const px = (x) => ((x - x0) / (x1 - x0)) * W;
   const py = (y) => H - ((y - lo) / (hi - lo)) * H;
-  const paths = series.map((s) => {
+  const paths = series.filter((s) => s.pts.length).map((s) => {
     let d = '';
     let prev = -Infinity;
     for (const [x, y] of s.pts) {
@@ -532,18 +532,22 @@ const pages = {
       limDlg.close();
       toast(horse.sensor_id ? 'Limites salvos. O sensor recebe no próximo envio.' : 'Limites salvos. Vincule um sensor para valerem.');
     });
-    // Ajustes do sensor (frequência, intervalos, temperatura, orientação).
+    // Ajustes do sensor: frequência de obtenção e intervalo de envio (cartão
+    // Sensor) e calibração de cada sinal (dentro de Limites de alerta).
     const setUrl = `api/v1/horses/${horse.id}/sensor/settings`;
     let sens = await api(setUrl);
+    const decimal = (v) => (v.trim() === '' ? null : Number(v.replace(',', '.')));
+    const signed = (v, d) => `${v > 0 ? '+' : ''}${num(v, d)}`;
     const rotText = () => (sens.rot_pending ? `Calibrada em ${hora(sens.rot_at)}; o sensor aplica no próximo envio.`
       : sens.rot ? `Calibrada em ${hora(sens.rot_at)}: o Z é o eixo da gravidade.`
         : 'Sem calibração: as leituras saem como o sensor mede.');
     const sensSummary = () => {
       const parts = [
+        sens.accel_hz && `${sens.accel_hz} leituras/s`,
         sens.upload_s && `envio a cada ${num(sens.upload_s / 60, 1)} min`,
-        sens.accel_hz && `${sens.accel_hz} Hz`,
-        sens.temp_s && `temperatura a cada ${sens.temp_s} s`,
-        sens.temp_offset && `ajuste ${sens.temp_offset > 0 ? '+' : ''}${num(sens.temp_offset, 1)} °C`,
+        sens.bpm_offset && `batimentos ${signed(sens.bpm_offset, 0)} bpm`,
+        sens.temp_offset && `temperatura ${signed(sens.temp_offset, 1)} °C`,
+        sens.mov_gain && `movimento ×${num(sens.mov_gain)}`,
         sens.rot && (sens.rot_pending ? 'orientação aguardando o sensor' : 'orientação calibrada'),
       ].filter(Boolean);
       $('sensorSum').textContent = horse.sensor_id
@@ -551,28 +555,26 @@ const pages = {
         : 'Nenhum sensor vinculado a este cavalo';
     };
     sensSummary();
+
     const sensDlg = $('sensDialog');
-    await fillSelect($('sensHz'), [option('', 'Padrão do cartão'), ...[50, 25, 20, 10].map((hz) => option(hz, `${hz} leituras por segundo`))]);
-    const hzWarn = () => { $('sensHzWarn').hidden = !$('sensHz').value || $('sensHz').value === '50'; };
-    $('sensHz').addEventListener('change', hzWarn);
+    const hzInfo = () => {
+      const hz = decimal($('sensHz').value);
+      $('sensHzInfo').textContent = hz
+        ? `Acelerômetro: ${hz} leituras/s · temperatura: a cada 2 s (o mais rápido que o sensor mede) · batimentos: 25/s (o mínimo para achar o pulso).${hz !== 50 ? ' Os padrões de movimento só funcionam a 50/s. Ao mudar, o sensor reinicia no próximo envio.' : ''}`
+        : '';
+    };
+    $('sensHz').addEventListener('input', hzInfo);
     $('cSensor').addEventListener('click', () => {
       $('sensHz').value = sens.accel_hz ? String(sens.accel_hz) : '';
       $('sensUp').value = sens.upload_s ? String(sens.upload_s / 60) : '';
-      $('sensTemp').value = sens.temp_s ?? '';
-      $('sensOff').value = sens.temp_offset ?? '';
-      $('sensRot').textContent = rotText();
-      $('sensUncal').hidden = !sens.rot;
-      hzWarn();
+      hzInfo();
       sensDlg.show();
     });
     $('sensCancel').addEventListener('click', () => sensDlg.close());
     $('sensSave').addEventListener('click', async () => {
-      const n = (id) => ($(id).value === '' ? null : Number($(id).value));
+      const up = decimal($('sensUp').value);
       try {
-        sens = await api(setUrl, {
-          method: 'PUT',
-          json: { accel_hz: n('sensHz'), upload_s: n('sensUp') && Math.round(n('sensUp') * 60), temp_s: n('sensTemp'), temp_offset: n('sensOff') },
-        });
+        sens = await api(setUrl, { method: 'PUT', json: { accel_hz: decimal($('sensHz').value), upload_s: up && Math.round(up * 60) } });
       } catch (e) {
         toast(e.message);
         return;
@@ -581,7 +583,81 @@ const pages = {
       sensDlg.close();
       toast('Ajustes salvos. O sensor recebe no próximo envio.');
     });
-    for (const [id, method] of [['sensCal', 'POST'], ['sensUncal', 'DELETE']]) {
+
+    // Calibração: a curva das últimas 24 h sem a calibração atual (base),
+    // com a do campo (simulada) e as linhas dos limites digitados.
+    const CAL = {
+      H: { title: 'Calibrar batimentos', field: 'bpm_offset', label: 'Somar aos batimentos (bpm)', unit: 'bpm', digits: 0, lims: ['limBpmMin', 'limBpmMax'], neutral: 0, apply: (v, x) => v + x, undo: (v, x) => v - x },
+      T: { title: 'Calibrar temperatura', field: 'temp_offset', label: 'Somar à temperatura (°C)', unit: '°C', digits: 1, lims: ['limTempMin', 'limTempMax'], neutral: 0, apply: (v, x) => v + x, undo: (v, x) => v - x },
+      A: { title: 'Calibrar movimento', field: 'mov_gain', label: 'Multiplicar a intensidade (×)', unit: 'g', digits: 2, lims: [null, 'limMovMax'], neutral: 1, apply: (v, x) => v * x, undo: (v, x) => v / x },
+    };
+    let cal;
+    let calPts = [];
+    const calDlg = $('calDialog');
+    function drawCal() {
+      const cur = sens[cal.field] ?? cal.neutral;
+      const typed = decimal($('calVal').value);
+      const x = typed == null || Number.isNaN(typed) ? cal.neutral : typed;
+      const [lo, hi] = cal.lims.map((id) => (id && $(id).value !== '' ? Number($(id).value) : null));
+      if (!calPts.length) {
+        $('calChart').innerHTML = '<div class="chart-empty">Sem dados nas últimas 24 h</div>';
+        $('calNote').textContent = '';
+        return;
+      }
+      const base = calPts.map((p) => [p.ts, cal.undo(p.avg, cur)]);
+      const sim = base.map(([t, v]) => [t, cal.apply(v, x)]);
+      const outside = sim.filter(([, v]) => (lo != null && v < lo) || (hi != null && v > hi));
+      const x0 = calPts[0].ts;
+      const x1 = calPts.at(-1).ts + calPts.at(-1).dur;
+      // Linha do limite com um ponto por minuto: o gráfico só liga pontos próximos.
+      const RED = '#FF3B30';
+      const line = (v) => ({ color: RED, opacity: 0.9, pts: sim.map(([t]) => [t, v]) });
+      lineChart($('calChart'), [
+        { color: 'var(--md-sys-color-on-surface-variant)', opacity: 0.35, pts: base },
+        { color: 'var(--md-sys-color-primary)', pts: sim },
+        ...[lo, hi].filter((v) => v != null).map(line),
+        { color: RED, pts: outside },
+      ], { x0, x1, gap: 150, digits: cal.digits });
+      const limText = lo == null && hi == null ? 'Sem limites de alerta para este sinal: nada dispara.'
+        : `${outside.length} de ${sim.length} minutos ficariam fora dos limites (alerta); ${sim.length - outside.length} dentro.`;
+      $('calNote').innerHTML = '';
+      $('calNote').textContent = cal === CAL.A ? `${limText} O alerta usa a média de 10 s, que oscila mais que a do minuto.` : limText;
+    }
+    async function openCal(k) {
+      cal = CAL[k];
+      $('calTitle').textContent = cal.title;
+      $('calVal').label = cal.label;
+      $('calVal').value = sens[cal.field] != null ? String(sens[cal.field]) : '';
+      $('calVal').placeholder = String(cal.neutral);
+      $('calOrient').hidden = k !== 'A';
+      $('calRot').textContent = rotText();
+      $('calRotUndo').hidden = !sens.rot;
+      $('calChart').innerHTML = '<div class="chart-empty">Carregando…</div>';
+      calDlg.show();
+      const now = Math.floor(Date.now() / 1000);
+      calPts = (await api(`api/v1/horses/${horse.id}/sensor/series?kind=${k}&from=${now - 86400}&to=${now + 60}`)).points;
+      drawCal();
+    }
+    document.querySelectorAll('.cal-btn').forEach((b) => b.addEventListener('click', () => openCal(b.dataset.k)));
+    $('calVal').addEventListener('input', () => cal && drawCal());
+    $('calCancel').addEventListener('click', () => calDlg.close());
+    $('calSave').addEventListener('click', async () => {
+      const x = decimal($('calVal').value);
+      if (x != null && Number.isNaN(x)) {
+        toast('Valor inválido');
+        return;
+      }
+      try {
+        sens = await api(setUrl, { method: 'PUT', json: { [cal.field]: x == null || x === cal.neutral ? null : x } });
+      } catch (e) {
+        toast(e.message);
+        return;
+      }
+      sensSummary();
+      calDlg.close();
+      toast('Calibração salva. O sensor recebe no próximo envio.');
+    });
+    for (const [id, method] of [['calRotDo', 'POST'], ['calRotUndo', 'DELETE']]) {
       $(id).addEventListener('click', async () => {
         try {
           sens = await api(`api/v1/horses/${horse.id}/sensor/calibrate`, { method });
@@ -589,10 +665,10 @@ const pages = {
           toast(e.message);
           return;
         }
-        $('sensRot').textContent = rotText();
-        $('sensUncal').hidden = !sens.rot;
+        $('calRot').textContent = rotText();
+        $('calRotUndo').hidden = !sens.rot;
         sensSummary();
-        toast(method === 'POST' ? 'Orientação calibrada. O sensor aplica no próximo envio.' : 'Calibração desfeita.');
+        toast(method === 'POST' ? 'Orientação calibrada. O sensor aplica no próximo envio.' : 'Calibração da orientação desfeita.');
       });
     }
 

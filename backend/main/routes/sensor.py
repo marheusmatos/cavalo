@@ -243,14 +243,16 @@ def series(
     last = session.scalar(
         select(func.max(SensorBlock.ts_ms + SensorBlock.dur_ms)).where(*own)
     )
+    # Fator da intensidade (calibração no portal): aplicado na leitura.
+    k = (session.get(Horse, horse_id).sensor_mov_gain or 1) if kind == 'A' else 1
     return {
         'points': [
             {
                 'ts': r.ts_ms // 1000,
                 'dur': r.dur_ms // 1000,
-                'min': r.v_min,
-                'max': r.v_max,
-                'avg': r.v_avg,
+                'min': r.v_min * k,
+                'max': r.v_max * k,
+                'avg': r.v_avg * k,
             }
             for r in session.execute(q.order_by(SensorBlock.ts_ms))
         ],
@@ -347,6 +349,8 @@ def _settings_out(horse):
         'upload_s': horse.sensor_upload_s,
         'temp_s': horse.sensor_temp_s,
         'temp_offset': horse.sensor_temp_offset,
+        'bpm_offset': horse.sensor_bpm_offset,
+        'mov_gain': horse.sensor_mov_gain,
         'ver': horse.alert_ver,
         'rot': [float(v) for v in horse.sensor_rot.split(',')] if horse.sensor_rot else None,
         'rot_at': horse.sensor_rot_at,
@@ -369,11 +373,11 @@ def get_settings(horse_id: int, session: Session = Depends(get_session)):
 def put_settings(
     horse_id: int, data: SensorSettings, session: Session = Depends(get_session)
 ):
-    """Troca os ajustes; o ESP32 baixa no próximo contato (e reinicia se a
-    frequência do acelerômetro mudou)."""
+    """Troca os ajustes enviados; o ESP32 baixa no próximo contato (e
+    reinicia se a frequência mudou)."""
     _check_horse(session, horse_id)
     horse = session.get(Horse, horse_id)
-    for key, value in data.model_dump().items():
+    for key, value in data.model_dump(exclude_unset=True).items():
         setattr(horse, f'sensor_{key}', value)
     alerts.bump(horse)
     session.commit()

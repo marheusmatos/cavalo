@@ -131,12 +131,28 @@ class AlertLimits(BaseModel):
 
 
 class SensorSettings(BaseModel):
-    """Ajustes do sensor pelo portal; None = vale o config.txt do cartão."""
+    """Ajustes do sensor pelo portal; None = vale o config.txt do cartão.
 
-    accel_hz: Optional[Literal[10, 20, 25, 50]] = None
+    accel_hz é a frequência de obtenção dos dados: o acelerômetro lê nela e a
+    temperatura também, até o limite do sensor (1 a cada 2 s); os batimentos
+    seguem em 25 leituras/s, o mínimo para achar o pulso. Só os campos
+    enviados mudam.
+    """
+
+    accel_hz: Optional[int] = None
     upload_s: Optional[int] = Field(default=None, ge=60, le=3600)
     temp_s: Optional[int] = Field(default=None, ge=2, le=3600)
     temp_offset: Optional[float] = Field(default=None, ge=-10, le=10)
+    bpm_offset: Optional[float] = Field(default=None, ge=-60, le=60)
+    mov_gain: Optional[float] = Field(default=None, gt=0, le=10)
+
+    @field_validator('accel_hz')
+    @classmethod
+    def _hz(cls, value):
+        # O MPU6050 divide 1 kHz por um inteiro e o FIFO aguenta até 50/s.
+        if value is not None and value not in (10, 20, 25, 40, 50):
+            raise ValueError('Use 10, 20, 25, 40 ou 50 leituras por segundo')
+        return value
 
 
 class SensorSettingsPublic(SensorSettings):

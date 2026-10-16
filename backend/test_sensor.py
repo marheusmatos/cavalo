@@ -513,3 +513,26 @@ def test_ajustes_do_sensor_e_calibracao_de_orientacao(auth):
     s = client.delete(f'{url}/calibrate', headers=auth).json()
     assert s['rot'] is None
     assert 'rot=' not in client.get('/api/v1/device/alerts', params={'ver': 0}, headers=dev).text
+
+
+def test_calibracao_parcial_de_batimentos_e_movimento(auth):
+    mac = '0a0b0c0d0e40'
+    horse = client.post(
+        '/api/v1/horses/', headers=auth, json={'name': 'Calibrado', 'sensor_id': mac}
+    ).json()
+    url = f'/api/v1/horses/{horse["id"]}/sensor'
+    dev = {'X-Sensor-Id': mac, 'X-Sensor-Key': settings.SENSOR_KEY}
+    client.put(f'{url}/settings', headers=auth, json={'upload_s': 300, 'accel_hz': 40})
+    # Só o campo enviado muda: o envio a cada 5 min continua.
+    s = client.put(f'{url}/settings', headers=auth, json={'bpm_offset': -3, 'mov_gain': 0.5}).json()
+    assert (s['upload_s'], s['accel_hz'], s['bpm_offset'], s['mov_gain']) == (300, 40, -3, 0.5)
+    assert client.put(f'{url}/settings', headers=auth, json={'accel_hz': 30}).status_code == 422
+    lines = client.get('/api/v1/device/alerts', params={'ver': 0}, headers=dev).text.splitlines()
+    assert {'bpm_off=-3', 'mov_gain=0.5', 'accel_hz=40', 'upload_s=300'} <= set(lines)
+
+    # A intensidade nos gráficos sai com o fator.
+    moving = [4096, 0, 0, 0, 0, 8192] * 1500  # média 0,5 g longe de 1 g
+    body = header(4) + record('A', 60_000, 60_000, moving, ch=3)
+    assert send(body, 4, 61_000, mac=mac).status_code == 200
+    pts = client.get(f'{url}/series', headers=auth, params={'kind': 'A'}).json()['points']
+    assert pts[0]['avg'] == pytest.approx(0.25)

@@ -152,7 +152,7 @@ def record(session, horse, alert):
             f'Alerta: {horse.name} - {(name or KINDS[alert.kind][0]).lower()}',
             f'{horse.name}: {what}.\n\n'
             f'Medido pelo sensor {horse.sensor_id} em {when}.\n'
-            'O LED do sensor fica piscando até alguém apertar o botão.\n',
+            'O LED do sensor pisca por 1 segundo; o alerta fica registrado no portal.\n',
         )
     session.add(row)
     session.commit()

@@ -62,30 +62,9 @@ A Figura~\ref{fig:uc2-cobertura} mostra, para cada dia com o sensor ligado, quan
   \fonte{Elaborado pelo autor (2026).}
 \end{figure}
 
-A incerteza de cada sinal seguiu o mesmo procedimento do caso de uso 1 \cite{moffat1988}. A ordem zero é a metade da resolução do valor recebido \cite{poiate}; a primeira ordem é $2S$, com $S$ medido em um experimento auxiliar com o sensor em condição estável; o erro fixo vem da folha de dados ou de uma medição com valor conhecido; e a ordem $N$ é a soma quadrática dessas parcelas, a 95\% de confiança. A Tabela~\ref{tab:uc2-incerteza} resume os valores.
-
-\begin{table}[htb]
-  \centering
-  \caption{Incerteza dos sinais biométricos a 95\% de confiança}
-  \label{tab:uc2-incerteza}
-  \begin{tabular}{lrrrr}
-    \hline
-    \textbf{Sinal} & \textbf{Ordem zero} & \textbf{1.ª ordem} & \textbf{Erro fixo} & \textbf{Ordem $N$} \\
-    \hline
-    Temperatura & 0,05 °C & 0,6 °C & 2,0 °C & 2,1 °C \\
-    Movimento (minuto) & 0,00003 $g$ & 0,003 $g$ & 0,076 $g$ & 0,003 $g$\textsuperscript{a} \\
-    Um batimento & 3,5 bpm & 6,0 bpm & não avaliado & 6,0 bpm \\
-    Média de 16/10 & --- & 0,7 bpm & não avaliado & 0,7 bpm \\
-    \hline
-  \end{tabular}
-  \fonte{Elaborado pelo autor (2026). \textsuperscript{a}Após descontar o erro fixo.}
-\end{table}
-
-\subsection{Frequência cardíaca}
-
 O MAX30102 só calcula batimentos com pele encostada no sensor, e nos ensaios ele foi usado com o dedo do autor por poucos segundos. % CONFERIR
-A Tabela~\ref{tab:bpm} lista as oito janelas. O sensor lê 25 vezes por segundo, e o intervalo entre dois picos tem resolução de 1/25 s. Pela propagação de $f = 60/T$, uma resolução $\delta T$ no período gera $\delta f = 60\,\delta T/T^2$ na frequência \cite{poiate}, valor que cresce com o quadrado da frequência: 3,5 bpm a 72 bpm e 21 bpm a 177 bpm.
-% PROVISÓRIO: a janela de 16/10 00:03 tem valores fictícios (uc2.py, JANELA_PROVISORIA). Substituir pela medição real antes da entrega.
+A Tabela~\ref{tab:bpm} lista as oito janelas. As médias ficaram entre 51 e 79 bpm, faixa compatível com a frequência cardíaca de uma pessoa em repouso. A incerteza foi estimada pela análise de amostra única de \citeonline{moffat1988}. O sensor lê 25 vezes por segundo, e o período $T$ entre dois picos tem resolução de 1/25~s; pela propagação de $f = 60/T$, essa resolução gera $\delta f = 60\,\delta T/T^2$ \cite{poiate}, valor da última coluna da tabela. Na janela de 16/10, com 73 batimentos e contato contínuo, a média foi de $(72{,}5 \pm 0{,}7)$~bpm a 95\% de confiança ($S = 3{,}0$~bpm, $t = 1{,}99$). % PROVISÓRIO: janela fictícia, substituir pela medição real
+Nas demais janelas, os mínimos (22 a 34 bpm) e os máximos (até 177 bpm) se afastam da média muito mais que essa incerteza e mostram que o algoritmo de detecção de pulso ainda aceita picos falsos quando o dedo se move. O sensor dividia o barramento I2C com o MPU6050 em fios sem solda, e as falhas de contato desligaram a leitura de batimentos em parte do período.
 
 \begin{table}[htb]
   \centering
@@ -93,7 +72,7 @@ A Tabela~\ref{tab:bpm} lista as oito janelas. O sensor lê 25 vezes por segundo,
   \label{tab:bpm}
   \begin{tabular}{lrrrrr}
     \hline
-    \textbf{Início} & \textbf{Duração (s)} & \textbf{Média} & \textbf{Mínimo} & \textbf{Máximo} & \textbf{Resolução} \\
+    \textbf{Início} & \textbf{Duração (s)} & \textbf{Média} & \textbf{Mínimo} & \textbf{Máximo} & \textbf{Incerteza} \\
     \hline
     10/10 19:27 & 31 & 60,2 & 28,1 & 106,8 & 2,4 \\
     10/10 19:27 & 9 & 51,0 & 27,1 & 76,3 & 1,7 \\
@@ -105,43 +84,27 @@ A Tabela~\ref{tab:bpm} lista as oito janelas. O sensor lê 25 vezes por segundo,
     16/10 00:03 & 60 & 72,5 & 68,2 & 78,9 & 3,5 \\ % PROVISÓRIO
     \hline
   \end{tabular}
-  \fonte{Elaborado pelo autor (2026). Resolução de um batimento na frequência média da janela.}
+  \fonte{Elaborado pelo autor (2026). Incerteza de um batimento pela resolução, na frequência média da janela.}
 \end{table}
 
-Nas sete primeiras janelas, os mínimos (22 a 34 bpm) e os máximos (até 177 bpm) se afastam da média muito mais que a resolução, o que mostra que o algoritmo de detecção de pulso aceitou picos falsos quando o dedo se moveu. O sensor dividia o barramento I2C com o MPU6050 em fios sem solda, e as falhas de contato desligaram a leitura de batimentos em parte do período. Na janela de 16/10, com 60 s de contato contínuo, a Figura~\ref{fig:uc2-batimentos} mostra os 73 batimentos. A média foi de $(72{,}5 \pm 0{,}7)$~bpm, com $S = 3{,}0$~bpm e $t = 1{,}99$ para 72 graus de liberdade, e a incerteza de um batimento isolado foi de $\pm 6{,}0$~bpm. Os valores se repetem em 68,2, 71,4, 75,0 e 78,9 bpm porque o período é contado em passos de 40 ms, e a resolução responde por boa parte da dispersão. O erro fixo do sensor exige comparação com um oxímetro de referência e não foi avaliado. % CONFERIR
+A Figura~\ref{fig:uc2-temperatura} apresenta a temperatura como o portal a exibe, em média por minuto, com os limites de alerta configurados (35~°C e 40~°C) em vermelho. No dia 14/10 o DHT11 mediu o ar da sala, entre 24,0~°C e 27,9~°C em 450 min. Com os limites atuais, todos esses minutos ficariam abaixo do mínimo. A incerteza da temperatura soma em quadratura a dispersão entre leituras sucessivas desse dia ($2S = 0{,}6$~°C), a metade da resolução (0,05~°C) e a exatidão de $\pm 2$~°C da folha de dados do DHT11, tomada como erro fixo \cite{moffat1988}, e resulta em $\pm 2{,}1$~°C a 95\% de confiança, faixa mostrada em azul na figura. Na noite de 15/10 foi salvo no portal um ajuste de +10~°C, usado para testar o caminho da calibração e não como correção medida. % CONFERIR
+O sensor baixou o ajuste no envio seguinte e, a partir das 23h, as leituras passaram para a faixa de 33,4~°C a 37,5~°C, cruzando o limite mínimo várias vezes.
 
 \begin{figure}[htb]
   \centering
-  \caption{Frequência de cada batimento na janela de 16/10, com a incerteza da média e de um batimento}
-  \label{fig:uc2-batimentos}
-  \includegraphics[width=0.95\linewidth]{figures/uc2_batimentos.pdf}
-  \fonte{Elaborado pelo autor (2026).}
-\end{figure}
-
-\subsection{Temperatura}
-
-A Figura~\ref{fig:uc2-temperatura} apresenta a temperatura como o portal a exibe, com a faixa de incerteza e os limites de alerta (35~°C e 40~°C) em vermelho. No dia 14/10 o DHT11 mediu o ar da sala, entre 24,0~°C e 27,9~°C em 450 leituras. A primeira ordem foi obtida das diferenças entre leituras sucessivas desse dia, que retiram a variação lenta da sala: $S = 0{,}30$~°C. A folha de dados do DHT11 informa exatidão de $\pm 2$~°C, adotada como erro fixo a 95\%. A ordem $N$ ficou em 2,1~°C, dominada pelo erro fixo.
-
-\begin{figure}[htb]
-  \centering
-  \caption{Temperatura medida, incerteza e limites de alerta com as zonas de dúvida}
+  \caption{Temperatura por minuto e limites de alerta}
   \label{fig:uc2-temperatura}
   \includegraphics[width=0.95\linewidth]{figures/uc2_temperatura.pdf}
   \fonte{Elaborado pelo autor (2026).}
 \end{figure}
 
-Os limites de alerta formam uma tolerância de 5~°C. Pelo critério de \citeonline{poiate}, a incerteza deveria ficar abaixo de um décimo desse intervalo, 0,5~°C, e a do DHT11 é quatro vezes maior. A zona de aceitação fica reduzida a 37,1~°C a 37,9~°C, e as faixas de 32,9~°C a 37,1~°C e de 37,9~°C a 42,1~°C são zonas de dúvida, em que a medição não permite afirmar se a temperatura está dentro ou fora dos limites. As 450 leituras de 14/10 ficaram na zona de rejeição, abaixo do mínimo. Na noite de 15/10 foi salvo no portal um ajuste de +10~°C, usado para testar o caminho da calibração e não como correção medida. % CONFERIR
-O sensor baixou o ajuste no envio seguinte e, a partir das 23h, as leituras passaram para a faixa de 33,4~°C a 37,5~°C: 47 das 49 leituras caíram na zona de dúvida e duas na zona de aceitação.
+O teste confirma que o ajuste feito no portal chega ao sensor sem regravar o \textit{firmware} e passa a valer na comparação com os limites. O valor de +10~°C, porém, não corresponde a nenhuma referência: para uso no animal, o ajuste deve ser obtido comparando o sensor com um termômetro clínico.
 
-O teste confirma que o ajuste feito no portal chega ao sensor sem regravar o \textit{firmware} e passa a valer na comparação com os limites. O valor de +10~°C, porém, não corresponde a nenhuma referência e não reduz a incerteza: para uso no animal, o ajuste deve ser obtido comparando o sensor com um termômetro clínico, e um sensor com exatidão de 0,5~°C ou melhor atenderia ao critério de um décimo da tolerância.
-
-\subsection{Movimento}
-
-A Figura~\ref{fig:uc2-movimento} mostra a intensidade do movimento em 14/10, calculada como o afastamento do módulo da aceleração em relação a 1~$g$. Não havia limite de movimento configurado nesse dia. Nos 348 minutos com o sensor parado, a média por minuto foi de $(0{,}0761 \pm 0{,}0002)$~$g$, quando o esperado seria zero, com $S = 0{,}0016$~$g$ entre minutos. Nos 60 s mais estáveis das leituras brutas de 15/10, a 50 leituras/s, o módulo médio foi de 1,077~$g$, com $S = 0{,}003$~$g$ por leitura. O desvio de 0,076~$g$ é um erro fixo de escala do MPU6050, de 7,7\%, e é o motivo de o portal oferecer o ganho de calibração do movimento: com o ganho de $1/1{,}077$, a incerteza restante por minuto cai para 0,003~$g$. Sem a correção, o erro fixo precisa entrar na incerteza \cite{moffat1988}, e valores abaixo de cerca de 0,08~$g$ não se distinguem do sensor parado. Os picos de até 2,36~$g$ correspondem aos momentos em que o sensor foi manuseado e superam essa faixa com folga.
+A Figura~\ref{fig:uc2-movimento} mostra a intensidade do movimento em 14/10, calculada como o afastamento do módulo da aceleração em relação a 1~$g$. Não havia limite de movimento configurado nesse dia. Com o sensor parado, a média por minuto ficou em $(0{,}076 \pm 0{,}003)$~$g$ em 348 minutos, a 95\% de confiança, quando o esperado seria zero. Esse desvio vem do erro de escala do MPU6050 e é o motivo de o portal oferecer o ganho de calibração do movimento. Os picos de até 2,36~$g$ correspondem aos momentos em que o sensor foi manuseado.
 
 \begin{figure}[htb]
   \centering
-  \caption{Intensidade do movimento por minuto em 14/10, com o erro fixo medido com o sensor parado (escala logarítmica acima de 0,1~$g$)}
+  \caption{Intensidade do movimento por minuto em 14/10 (escala logarítmica acima de 0,1~$g$)}
   \label{fig:uc2-movimento}
   \includegraphics[width=0.95\linewidth]{figures/uc2_movimento.pdf}
   \fonte{Elaborado pelo autor (2026).}
@@ -221,5 +184,4 @@ Os resultados deste caso de uso serão apresentados após a conclusão dos ensai
 \section{Síntese dos resultados}
 \label{sec:res-sintese}
 
-O protótipo coletou e enviou ao servidor 959 min de movimento e 785 min de temperatura em quatro dias, com as leituras guardadas no cartão SD entre um envio e outro. A localização pela rede Find Hub detectou a saída da cerca em 30/09, com posições a cada 16 min (mediana) e incerteza de 19 m (leste) e 28 m (norte) a 95\% de confiança. Com essa incerteza, o site soma cerca de 14 m por passo com a \textit{tag} parada, e a distância só foi significativa no dia com deslocamento. A calibração e os limites definidos no portal chegaram ao sensor sem regravar o \textit{firmware}. A frequência cardíaca teve 304 s de leitura, limitada pelo contato com a pele e pelas conexões do barramento I2C, e a janela com contato contínuo deu $(72{,}5 \pm 0{,}7)$~bpm. % PROVISÓRIO: valor da janela fictícia de 16/10
-A temperatura teve incerteza de 2,1~°C, quatro vezes o recomendado para os limites de alerta, e o movimento, um erro fixo de 0,076~$g$ que o ganho de calibração corrige. Na detecção de padrões, o modelo supervisionado não atingiu desempenho útil com dez marcações, e o detector físico reconheceu as voltas marcadas, mas os saltos de teste ficaram abaixo do limiar de 5 cm. Os ensaios no animal são a próxima etapa para medir esses valores em condições reais.
+O protótipo coletou e enviou ao servidor 959 min de movimento e 785 min de temperatura em quatro dias, com as leituras guardadas no cartão SD entre um envio e outro. A localização pela rede Find Hub detectou a saída da cerca em 30/09, com posições a cada 16 min (mediana) e incerteza de 19 m (leste) e 28 m (norte) a 95\% de confiança. Com essa incerteza, o site soma cerca de 14 m por passo com a \textit{tag} parada, e a distância só foi significativa no dia com deslocamento. A calibração e os limites definidos no portal chegaram ao sensor sem regravar o \textit{firmware}. A frequência cardíaca teve apenas 304 s de leitura, limitada pelo contato com a pele e pelas conexões do barramento I2C. Na detecção de padrões, o modelo supervisionado não atingiu desempenho útil com dez marcações, e o detector físico reconheceu as voltas marcadas, mas os saltos de teste ficaram abaixo do limiar de 5 cm. Os ensaios no animal são a próxima etapa para medir esses valores em condições reais.

@@ -1,5 +1,5 @@
 % Documento mínimo para visualizar o capítulo de resultados.
-% Compilar: pdflatex main.tex (duas vezes, para as referências cruzadas).
+% Compilar: pdflatex main.tex , bibtex e pdflatex mais duas vezes.
 \documentclass[12pt, oneside, a4paper, english, brazil]{abntex2}
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
@@ -7,6 +7,8 @@
 \usepackage{graphicx}
 \usepackage{textcomp}
 \usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage[alf]{abntex2cite}
 
 \setlrmarginsandblock{3cm}{2cm}{*}
 \setulmarginsandblock{3cm}{2cm}{*}
@@ -19,4 +21,6 @@
 \pretextual
 \textual
 \input{resultados_uc1}
+\postextual
+\bibliography{referencias}
 \end{document}

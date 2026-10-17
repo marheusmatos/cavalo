@@ -1,0 +1,217 @@
+% =====================================================================
+% Capítulo de resultados (abnTeX2). Incluir no documento principal com
+% \include{resultados}. As figuras estão em figuras/ (PDF vetorial; o PNG
+% de mesmo nome serve para visualização).
+%
+% Estrutura (NBR 14724): o capítulo abre com as condições dos ensaios,
+% segue a ordem dos casos de uso definidos na metodologia, cita cada
+% figura e tabela no texto antes de ela aparecer, traz o título acima e a
+% fonte abaixo, e discute cada resultado logo depois de apresentá-lo.
+%
+% Trechos marcados com "CONFERIR" dependem de informação que só o autor
+% tem (condições dos ensaios). Revise antes de entregar.
+% =====================================================================
+
+\chapter{Resultados e discussão}
+\label{cap:resultados}
+
+Este capítulo apresenta os resultados obtidos com o protótipo entre 10 e 17 de outubro de 2026, organizados pelos casos de uso definidos na metodologia: localização (caso de uso 1), coleta biométrica (caso de uso 2), detecção de padrões repetitivos de movimento (caso de uso 3) e o caso de uso 4, ainda em andamento. Todos os dados foram extraídos da API do portal em produção, a mesma que alimenta as telas do sistema, e processados por \textit{scripts} em Python para gerar as figuras.
+
+Os ensaios foram feitos com o protótipo fora do animal: o sensor ficou sobre a bancada na maior parte do tempo e foi movimentado à mão nos testes de padrões, e a \textit{tag} de localização permaneceu em área urbana. % CONFERIR: condições dos ensaios
+A Tabela~\ref{tab:condicoes} resume a configuração usada.
+
+\begin{table}[htb]
+  \centering
+  \caption{Configuração do protótipo durante os ensaios}
+  \label{tab:condicoes}
+  \begin{tabular}{lp{8.5cm}}
+    \hline
+    \textbf{Item} & \textbf{Valor} \\
+    \hline
+    Microcontrolador & ESP32 DevKit \\
+    Acelerômetro e giroscópio & MPU6050, 50 leituras/s \\
+    Frequência cardíaca & MAX30102, 25 leituras/s \\
+    Temperatura & DHT11, uma leitura a cada 20 s \\
+    Armazenamento local & cartão microSD \\
+    Intervalo de envio ao servidor & 180 s \\
+    Localização & \textit{tag} BLE na rede Google Find Hub, consulta a cada 10 min \\
+    Cerca virtual & círculo de 310 m de raio \\
+    Período analisado & 10/10/2026 a 17/10/2026 \\
+    \hline
+  \end{tabular}
+  \fonte{Elaborado pelo autor (2026).}
+\end{table}
+
+% ---------------------------------------------------------------------
+\section{Caso de uso 1: localização}
+\label{sec:res-localizacao}
+
+O servidor recebeu 235 posições da \textit{tag} entre 10/10 e 17/10. A Figura~\ref{fig:uc1-trajeto} mostra essas posições em metros a partir do centro da cerca virtual, sem o mapa de fundo, para não expor o endereço do local de teste.
+
+\begin{figure}[htb]
+  \centering
+  \caption{Posições recebidas da \textit{tag} e cerca virtual}
+  \label{fig:uc1-trajeto}
+  \includegraphics[width=0.62\textwidth]{figuras/uc1_trajeto.pdf}
+  \fonte{Elaborado pelo autor (2026).}
+\end{figure}
+
+Todas as posições ficaram dentro da cerca; a mais distante estava a 222 m do centro, para um raio de 310 m. Por isso nenhum alerta de saída da cerca foi gerado no período. Os pontos se concentram em uma área de cerca de 100 m de diâmetro, o que é compatível com uma \textit{tag} parada e com a precisão informada pela rede.
+
+A Figura~\ref{fig:uc1-dia} apresenta a quantidade de posições e a distância somada em cada dia. Nos dias 15 e 16 nenhuma posição chegou ao servidor. A rede Find Hub depende de celulares Android que passem perto da \textit{tag}, e o servidor só registra o que a rede entrega.
+
+\begin{figure}[htb]
+  \centering
+  \caption{Posições recebidas e distância somada por dia}
+  \label{fig:uc1-dia}
+  \includegraphics[width=\textwidth]{figuras/uc1_por_dia.pdf}
+  \fonte{Elaborado pelo autor (2026).}
+\end{figure}
+
+A distância somada no período foi de 3.347 m, com dias acima de 700 m, embora a \textit{tag} estivesse praticamente parada. A Figura~\ref{fig:uc1-intervalo} explica essa diferença. O intervalo mediano entre duas posições foi de 18 min (90\% abaixo de 56 min), e a precisão informada pela rede teve mediana de 92 m. Em 226 dos 234 deslocamentos entre posições consecutivas, a distância percorrida foi menor que o raio de incerteza das próprias posições. A distância somada, portanto, mede o ruído de localização e não o deslocamento real. O mesmo vale para a maior velocidade calculada entre dois pontos (24,7 km/h), resultado de dois relatórios com 100 m de incerteza recebidos com segundos de diferença.
+
+\begin{figure}[htb]
+  \centering
+  \caption{Intervalo entre posições consecutivas e precisão informada pela rede}
+  \label{fig:uc1-intervalo}
+  \includegraphics[width=\textwidth]{figuras/uc1_intervalo_precisao.pdf}
+  \fonte{Elaborado pelo autor (2026).}
+\end{figure}
+
+Com intervalos de dezenas de minutos e incerteza próxima de 100 m, a localização atende à verificação de cerca para áreas de pasto com raio de algumas centenas de metros, mas não à medição de distância percorrida em treinos. Para esse fim, o cálculo precisaria descartar deslocamentos menores que a incerteza dos pontos, ou a distância teria de vir do acelerômetro.
+
+% ---------------------------------------------------------------------
+\section{Caso de uso 2: coleta biométrica}
+\label{sec:res-biometria}
+
+A Figura~\ref{fig:uc2-cobertura} mostra, para cada dia com o sensor ligado, quantos minutos têm leitura de cada sinal no servidor. O movimento somou 959 min e a temperatura 785 min. As leituras de frequência cardíaca somaram 244 s, distribuídos em sete janelas.
+
+\begin{figure}[htb]
+  \centering
+  \caption{Minutos com leitura no servidor, por dia e por sinal}
+  \label{fig:uc2-cobertura}
+  \includegraphics[width=\textwidth]{figuras/uc2_cobertura.pdf}
+  \fonte{Elaborado pelo autor (2026).}
+\end{figure}
+
+O MAX30102 só calcula batimentos com pele encostada no sensor, e nos ensaios ele foi usado com o dedo do autor por poucos segundos. % CONFERIR
+A Tabela~\ref{tab:bpm} lista as sete janelas. As médias ficaram entre 51 e 79 bpm, faixa compatível com a frequência cardíaca de uma pessoa em repouso, mas os mínimos (22 a 34 bpm) e os máximos (até 177 bpm) mostram que o algoritmo de detecção de pulso ainda aceita picos falsos quando o dedo se move. O sensor dividia o barramento I2C com o MPU6050 em fios sem solda, e as falhas de contato desligaram a leitura de batimentos em parte do período.
+
+\begin{table}[htb]
+  \centering
+  \caption{Janelas com leitura de frequência cardíaca}
+  \label{tab:bpm}
+  \begin{tabular}{lrrrr}
+    \hline
+    \textbf{Início} & \textbf{Duração (s)} & \textbf{Média (bpm)} & \textbf{Mínimo (bpm)} & \textbf{Máximo (bpm)} \\
+    \hline
+    10/10 19:27 & 31 & 60,2 & 28,1 & 106,8 \\
+    10/10 19:27 & 9 & 51,0 & 27,1 & 76,3 \\
+    10/10 19:28 & 57 & 62,4 & 34,1 & 79,7 \\
+    14/10 18:07 & 29 & 62,7 & 23,0 & 75,7 \\
+    14/10 21:12 & 55 & 53,6 & 21,7 & 105,3 \\
+    15/10 20:34 & 8 & 78,5 & 34,2 & 177,0 \\
+    15/10 23:54 & 55 & 67,0 & 31,0 & 176,5 \\
+    \hline
+  \end{tabular}
+  \fonte{Elaborado pelo autor (2026).}
+\end{table}
+
+A Figura~\ref{fig:uc2-temperatura} apresenta a temperatura como o portal a exibe, em média por minuto, com os limites de alerta configurados (35~°C e 40~°C) em vermelho. No dia 14/10 o DHT11 mediu o ar da sala, entre 24,0~°C e 27,9~°C em 450 min. Com os limites atuais, todos esses minutos ficariam abaixo do mínimo. Na noite de 15/10 foi salvo no portal um ajuste de +10~°C, usado para testar o caminho da calibração e não como correção medida. % CONFERIR
+O sensor baixou o ajuste no envio seguinte e, a partir das 23h, as leituras passaram para a faixa de 33,4~°C a 37,5~°C, cruzando o limite mínimo várias vezes.
+
+\begin{figure}[htb]
+  \centering
+  \caption{Temperatura por minuto e limites de alerta}
+  \label{fig:uc2-temperatura}
+  \includegraphics[width=\textwidth]{figuras/uc2_temperatura.pdf}
+  \fonte{Elaborado pelo autor (2026).}
+\end{figure}
+
+O teste confirma que o ajuste feito no portal chega ao sensor sem regravar o \textit{firmware} e passa a valer na comparação com os limites. O valor de +10~°C, porém, não corresponde a nenhuma referência: para uso no animal, o ajuste deve ser obtido comparando o sensor com um termômetro clínico.
+
+A Figura~\ref{fig:uc2-movimento} mostra a intensidade do movimento em 14/10, calculada como o afastamento do módulo da aceleração em relação a 1~$g$. Não havia limite de movimento configurado nesse dia. Com o sensor parado, a média por minuto ficou em 0,077~$g$, quando o esperado seria zero. Esse desvio vem do erro de escala do MPU6050 e é o motivo de o portal oferecer o ganho de calibração do movimento. Os picos de até 2,36~$g$ correspondem aos momentos em que o sensor foi manuseado.
+
+\begin{figure}[htb]
+  \centering
+  \caption{Intensidade do movimento por minuto em 14/10 (escala logarítmica acima de 0,1~$g$)}
+  \label{fig:uc2-movimento}
+  \includegraphics[width=\textwidth]{figuras/uc2_movimento.pdf}
+  \fonte{Elaborado pelo autor (2026).}
+\end{figure}
+
+O envio de alertas por e-mail ao veterinário não foi avaliado, pois o servidor de e-mail (SMTP) não estava configurado no período. Os alertas pelo LED do sensor e pelo sino do portal foram verificados de forma visual, sem registro quantitativo. % CONFERIR
+
+% ---------------------------------------------------------------------
+\section{Caso de uso 3: detecção de padrões repetitivos}
+\label{sec:res-padroes}
+
+Os padrões ``Pulo'' e ``Volta'' foram avaliados em uma sessão de testes em 15/10, com 87,7 min de leituras do acelerômetro (263.089 amostras a 50 Hz). Nessa sessão o autor marcou no portal dez trechos, oito de Pulo e dois de Volta, que somam 22 s. Duas versões de detecção rodaram no sensor: até as 23h05, o modelo supervisionado treinado no servidor (floresta de 15 árvores de profundidade 4); depois desse horário, o detector físico descrito na metodologia.
+
+A Figura~\ref{fig:uc3-sinal} mostra um trecho de 35 s com os três eixos, a marcação feita no portal (faixa cinza) e os eventos que o sensor registrou com o modelo supervisionado (linhas tracejadas).
+
+\begin{figure}[htb]
+  \centering
+  \caption{Sinal do acelerômetro, trecho marcado como Pulo e eventos registrados pelo sensor}
+  \label{fig:uc3-sinal}
+  \includegraphics[width=\textwidth]{figuras/uc3_sinal_marcacoes.pdf}
+  \fonte{Elaborado pelo autor (2026).}
+\end{figure}
+
+No trecho marcado, o eixo Z cai até cerca de 0,6~$g$ e sobe a quase 2~$g$, e o sensor registrou um Pulo dentro da marcação. O modelo, porém, também registrou eventos de Volta no mesmo instante e Pulos durante o manuseio seguinte, que não foi marcado. A Figura~\ref{fig:uc3-modelo} apresenta o desempenho do modelo supervisionado na validação feita pelo servidor no treino, deixando uma marcação de fora de cada vez.
+
+\begin{figure}[htb]
+  \centering
+  \caption{Desempenho do modelo supervisionado na validação do treino}
+  \label{fig:uc3-modelo}
+  \includegraphics[width=\textwidth]{figuras/uc3_modelo_supervisionado.pdf}
+  \fonte{Elaborado pelo autor (2026).}
+\end{figure}
+
+O modelo reconheceu 50\% dos trechos de Pulo, com 22,7 falsos alarmes por hora fora das marcações, e nenhum trecho de Volta. Com oito exemplos de Pulo (31 janelas) contra 3.000 janelas negativas, e dois exemplos de Volta, a base de treino é pequena demais para separar os padrões do manuseio comum do sensor. Esse resultado levou à troca do modelo supervisionado por um detector baseado na física do movimento, que não depende de exemplos marcados.
+
+No detector físico, um salto é identificado pelo tempo $T$ em queda livre, em que o módulo da aceleração fica abaixo de 0,6~$g$. A altura vem da equação do lançamento vertical, $h = gT^2/8$, e o salto só é contado acima de 5~cm. A Figura~\ref{fig:uc3-voo} mostra os 20 voos com pelo menos 0,06 s encontrados ao reaplicar essa regra às leituras da sessão.
+
+\begin{figure}[htb]
+  \centering
+  \caption{Altura estimada de cada voo pelo tempo em queda livre e limiar de contagem}
+  \label{fig:uc3-voo}
+  \includegraphics[width=\textwidth]{figuras/uc3_voo_altura.pdf}
+  \fonte{Elaborado pelo autor (2026).}
+\end{figure}
+
+Três voos passaram do limiar, com 5,9 cm, 11 cm e 15,9 cm; os outros 17 ficaram entre 0,8 cm e 4,9 cm. Os oito trechos marcados como Pulo tiveram voos abaixo de 5 cm, de modo que nenhum deles foi contado. Os saltos do teste foram pequenos, feitos levantando e soltando a placa, e ficaram na faixa em que a regra não distingue um salto de um solavanco. Em um cavalo, um salto de 1 m corresponde a cerca de 0,9 s em queda livre, valor muito acima do ruído observado.
+
+A Tabela~\ref{tab:uc3} compara as duas versões. A versão supervisionada é a que rodou no sensor até as 23h05; a física foi reaplicada às leituras da sessão inteira. Os eventos fora das marcações não equivalem a falsos alarmes, pois o autor não marcou todos os movimentos feitos durante a sessão.
+
+\begin{table}[htb]
+  \centering
+  \caption{Marcações reconhecidas e eventos por versão de detecção na sessão de 15/10}
+  \label{tab:uc3}
+  \begin{tabular}{llrrr}
+    \hline
+    \textbf{Padrão} & \textbf{Versão} & \textbf{Marcações} & \textbf{Reconhecidas} & \textbf{Eventos} \\
+    \hline
+    Pulo  & Supervisionada (sensor) & 6 & 1 & 39 \\
+    Volta & Supervisionada (sensor) & 2 & 0 & 42 \\
+    Pulo  & Física (reaplicada) & 8 & 0 & 3 \\
+    Volta & Física (reaplicada) & 2 & 2 & 22 \\
+    \hline
+  \end{tabular}
+  \fonte{Elaborado pelo autor (2026).}
+\end{table}
+
+Para a Volta, o detector físico reconheceu os dois trechos marcados ao somar 360° de rotação do vetor horizontal da aceleração, e registrou 22 voltas na sessão, contra 42 do modelo supervisionado em um período menor. A reaplicação usou apenas o método do vetor horizontal, pois as leituras do giroscópio não ficam guardadas no servidor; no sensor, a volta também é contada pela rotação medida pelo giroscópio.
+
+% ---------------------------------------------------------------------
+\section{Caso de uso 4}
+\label{sec:res-uc4}
+
+% PENDENTE: resultados do caso de uso 4.
+Os resultados deste caso de uso serão apresentados após a conclusão dos ensaios.
+
+% ---------------------------------------------------------------------
+\section{Síntese dos resultados}
+\label{sec:res-sintese}
+
+O protótipo coletou e enviou ao servidor 959 min de movimento e 785 min de temperatura em quatro dias, com as leituras guardadas no cartão SD entre um envio e outro. A localização pela rede Find Hub verificou a cerca virtual com posições a cada 18 min (mediana) e incerteza mediana de 92 m, insuficiente para medir distância percorrida. A calibração e os limites definidos no portal chegaram ao sensor sem regravar o \textit{firmware}. A frequência cardíaca teve apenas 244 s de leitura, limitada pelo contato com a pele e pelas conexões do barramento I2C. Na detecção de padrões, o modelo supervisionado não atingiu desempenho útil com dez marcações, e o detector físico reconheceu as voltas marcadas, mas os saltos de teste ficaram abaixo do limiar de 5 cm. Os ensaios no animal são a próxima etapa para medir esses valores em condições reais.

@@ -32,6 +32,21 @@ async function api(path, { json, ...opts } = {}) {
   return body;
 }
 
+// Papel do login (vem no JWT): o admin (dono do haras) muda tudo; o
+// veterinário, características e nutrição; o dono, a intensidade do treino.
+// O servidor confere de novo (403); aqui só some o que não dá para usar.
+function role() {
+  try {
+    return JSON.parse(atob(sessionStorage.getItem('token').split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).role ?? 'admin';
+  } catch {
+    return 'admin';
+  }
+}
+const CAN = { veterinario: ['traits', 'meals'], dono: ['training'] };
+const can = (what) => role() === 'admin' || (CAN[role()] ?? []).includes(what);
+const ROLE_NAME = { admin: 'admin', veterinario: 'veterinário', dono: 'dono' };
+const TRAINING = { easy: 'Leve (easy)', medium: 'Médio (medium)', hard: 'Pesado (hard)' };
+
 const loadTrackers = () => (trackersCache ??= api('api/v1/findhub/trackers')
   .then((r) => r.trackers)
   .catch((e) => { trackersCache = null; throw e; }));
@@ -432,8 +447,12 @@ const pages = {
   async plantel({ params }) {
     bar({
       title: 'Plantel',
-      actions: [['bluetooth_searching', 'Conta Google', () => go('#/google')], ['logout', 'Sair', logout]],
+      actions: [
+        ...(can('admin') ? [['bluetooth_searching', 'Conta Google', () => go('#/google')]] : []),
+        ['logout', `Sair (${ROLE_NAME[role()]})`, logout],
+      ],
     });
+    $('fabCad').hidden = !can('admin');
     const [{ horses }, status] = await Promise.all([api('api/v1/horses/'), api('api/v1/findhub/status')]);
     $('googleBanner').hidden = status.logged_in;
     const cards = horses.map(horseCard);
@@ -510,12 +529,54 @@ const pages = {
     bar({
       title: horse.name,
       back: '#/plantel',
-      actions: [['delete', 'Remover cavalo', async () => {
-        if (!confirm(`Remover "${horse.name}" com todo o trajeto e o plano de nutrição?`)) return;
-        await api(`api/v1/horses/${horse.id}`, { method: 'DELETE' });
-        go('#/plantel');
-      }]],
+      actions: [
+        ...(can('traits') ? [['edit', 'Editar características', () => openEdit()]] : []),
+        ...(can('admin') ? [['delete', 'Remover cavalo', async () => {
+          if (!confirm(`Remover "${horse.name}" com todo o trajeto e o plano de nutrição?`)) return;
+          await api(`api/v1/horses/${horse.id}`, { method: 'DELETE' });
+          go('#/plantel');
+        }]] : []),
+      ],
     });
+    // Características (admin e veterinário): os campos do cadastro, com "ed".
+    const ED_FIELDS = [['edNome', 'name'], ...CAD_FIELDS.map(([id, f, isNum]) => [`ed${id.slice(3)}`, f, isNum])];
+    async function openEdit() {
+      await fillSelect($('edSexo'), [option('', 'Não informado', !horse.sex), ...Object.entries(SEX).map(([v, t]) => option(v, t, horse.sex === v))]);
+      for (const [id, f] of ED_FIELDS) if (id !== 'edSexo') $(id).value = horse[f] == null ? '' : String(horse[f]);
+      $('editDialog').show();
+    }
+    $('edCancel').addEventListener('click', () => $('editDialog').close());
+    $('edSave').addEventListener('click', async () => {
+      const body = {};
+      for (const [id, f, isNum] of ED_FIELDS) body[f] = (isNum ? Number($(id).value) : $(id).value.trim()) || null;
+      if (!body.name) {
+        toast('Informe o nome');
+        return;
+      }
+      try {
+        await api(`api/v1/horses/${horse.id}`, { method: 'PATCH', json: body });
+      } catch (e) {
+        toast(e.message);
+        return;
+      }
+      $('editDialog').close();
+      toast('Características salvas');
+      render();
+    });
+    // Intensidade do treino (admin e dono).
+    await fillSelect($('trainLevel'), [option('', 'Não definida', !horse.training_level),
+      ...Object.entries(TRAINING).map(([v, t]) => option(v, t, horse.training_level === v))]);
+    $('trainLevel').disabled = !can('training');
+    $('trainLevel').addEventListener('change', async () => {
+      try {
+        Object.assign(horse, await api(`api/v1/horses/${horse.id}`, { method: 'PATCH', json: { training_level: $('trainLevel').value || null } }));
+        toast('Intensidade do treino salva');
+      } catch (e) {
+        toast(e.message);
+      }
+    });
+    // Limites e calibração: os outros acessos só veem.
+    for (const id of ['limSave', 'calSave', 'calRotDo', 'calRotUndo']) if (!can('admin')) $(id).style.display = 'none';
     $('hInitial').textContent = horse.name[0].toUpperCase();
     $('hName').textContent = horse.name;
     $('hBreed').textContent = horse.breed || 'Raça não informada';
@@ -569,6 +630,7 @@ const pages = {
       limDlg.show();
     });
     $('limCancel').addEventListener('click', () => limDlg.close());
+    if (!can('admin')) $('limCancel').textContent = 'Fechar';
     $('limSave').addEventListener('click', async () => {
       const body = {};
       for (const [id, key] of Object.entries(LIM_FIELDS)) body[key] = $(id).value === '' ? null : Number($(id).value);
@@ -804,7 +866,8 @@ const pages = {
       draw();
     });
 
-    // --- editar cerca: o centro acompanha o centro do mapa ---
+    // --- editar cerca (só o admin): o centro acompanha o centro do mapa ---
+    if (!can('admin')) $('fenceFab').style.display = 'none';
     const slider = $('rslider');
     const setRadius = (r) => {
       fence.setRadius(Number(r));
@@ -1065,7 +1128,7 @@ const pages = {
     }
     $('accChart').addEventListener('click', (e) => {
       const svg = $('accChart').querySelector('svg');
-      if (!svg || !accWin) return;
+      if (!svg || !accWin || !can('admin')) return; // marcar e treinar: só o admin
       const r = svg.getBoundingClientRect();
       openMark(accWin[0] + ((e.clientX - r.left) / r.width) * (accWin[1] - accWin[0]));
     });
@@ -1118,8 +1181,10 @@ const pages = {
           `${hora(l.from_ms / 1000)} · ${num((l.to_ms - l.from_ms) / 1000, 1)} s`,
           del,
         );
-        item.classList.add('tap');
-        item.onclick = () => openMark((l.from_ms + l.to_ms) / 2000);
+        if (can('admin')) {
+          item.classList.add('tap');
+          item.onclick = () => openMark((l.from_ms + l.to_ms) / 2000);
+        } else del.remove();
         return item;
       }) : [listItem('', 'Nenhuma marcação. Toque no gráfico do acelerômetro para marcar um trecho.')]));
     }
@@ -1140,7 +1205,7 @@ const pages = {
         edit.setAttribute('aria-label', `Editar ${p.name}`);
         edit.innerHTML = '<span class="material-symbols-outlined">edit</span>';
         edit.onclick = () => openPattern(p);
-        return listItem(p.name, `${p.labels} marcações${alert} · ${quality}`, edit);
+        return listItem(p.name, `${p.labels} marcações${alert} · ${quality}`, can('admin') ? edit : undefined);
       }));
     }
 
@@ -1155,6 +1220,7 @@ const pages = {
       $('patDialog').show();
     }
     $('patNew').addEventListener('click', () => openPattern(null));
+    if (!can('admin')) for (const id of ['patNew', 'train']) $(id).style.display = 'none';
     $('patCancel').addEventListener('click', () => $('patDialog').close());
     $('patSave').addEventListener('click', async () => {
       const n = (id) => ($(id).value === '' ? null : Number($(id).value));
@@ -1226,7 +1292,7 @@ const pages = {
           } else {
             cell.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">add</span>';
           }
-          cell.addEventListener('click', () => open(weekday, shift, false));
+          if (can('meals')) cell.addEventListener('click', () => open(weekday, shift, false));
           return cell;
         }));
         return row;
@@ -1261,6 +1327,7 @@ const pages = {
       $(id).addEventListener('input', recompute);
       $(id).addEventListener('change', recompute);
     }
+    if (!can('meals')) $('fabMeal').style.display = 'none'; // admin e veterinário
     $('fabMeal').addEventListener('click', () => {
       const now = new Date();
       const h = now.getHours();

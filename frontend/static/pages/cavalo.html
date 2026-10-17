@@ -14,6 +14,11 @@
 
   <div id="hFacts" class="card facts" hidden></div>
 
+  <div class="card limits" style="cursor:default">
+    <span class="material-symbols-outlined" style="color:var(--status-ok)">fitness_center</span>
+    <md-outlined-select id="trainLevel" label="Intensidade do treino" positioning="popover" style="flex:1;min-width:0"></md-outlined-select>
+  </div>
+
   <button type="button" class="card card--tap limits" id="cLimits">
     <span class="material-symbols-outlined" style="color:var(--status-crit)">notifications_active</span>
     <span style="flex:1;min-width:0">
@@ -59,6 +64,34 @@
     </a>
   </div>
 </section>
+
+<md-dialog id="editDialog">
+  <div slot="headline">Características</div>
+  <form slot="content" method="dialog" class="dialog-form">
+    <md-outlined-text-field id="edNome" label="Nome"></md-outlined-text-field>
+    <md-outlined-text-field id="edRaca" label="Raça"></md-outlined-text-field>
+    <div class="pair">
+      <md-outlined-select id="edSexo" label="Sexo"></md-outlined-select>
+      <md-outlined-text-field id="edNasc" label="Nascimento" type="date"></md-outlined-text-field>
+    </div>
+    <md-outlined-text-field id="edPelagem" label="Pelagem" maxlength="50"></md-outlined-text-field>
+    <div class="label muted">Dimensões</div>
+    <div class="pair">
+      <md-outlined-text-field id="edPeso" label="Peso (kg)" type="number" step="1" min="1"></md-outlined-text-field>
+      <md-outlined-text-field id="edAltura" label="Altura na cernelha (cm)" type="number" step="1" min="1"></md-outlined-text-field>
+    </div>
+    <div class="pair">
+      <md-outlined-text-field id="edTorax" label="Perímetro torácico (cm)" type="number" step="1" min="1"></md-outlined-text-field>
+      <md-outlined-text-field id="edCorpo" label="Comprimento do corpo (cm)" type="number" step="1" min="1"></md-outlined-text-field>
+    </div>
+    <md-outlined-text-field id="edCanela" label="Perímetro da canela (cm)" type="number" step="0.5" min="1"></md-outlined-text-field>
+    <md-outlined-text-field id="edObs" label="Marcas e observações" type="textarea" rows="2" maxlength="500"></md-outlined-text-field>
+  </form>
+  <div slot="actions">
+    <md-text-button id="edCancel">Cancelar</md-text-button>
+    <md-filled-button id="edSave">Salvar</md-filled-button>
+  </div>
+</md-dialog>
 
 <md-dialog id="limDialog">
   <div slot="headline">Limites de alerta</div>

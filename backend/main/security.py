@@ -13,7 +13,7 @@ import hmac
 from datetime import datetime, timedelta, timezone
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 
 from main.settings import settings
@@ -28,29 +28,63 @@ _UNAUTHORIZED = HTTPException(
 )
 
 
-def create_access_token(username: str) -> str:
+# Papéis: o admin (dono do haras) muda tudo; os outros veem tudo e só mudam
+# o que está em WRITES (método, rota). Os campos do cavalo que cada um pode
+# mudar ficam em HORSE_FIELDS (conferidos no PATCH do cavalo).
+WRITES = {
+    'veterinario': {
+        ('PATCH', '/api/v1/horses/{horse_id}'),
+        ('PUT', '/api/v1/horses/{horse_id}/meals'),
+        ('DELETE', '/api/v1/horses/{horse_id}/meals/{weekday}/{shift}'),
+        ('POST', '/api/v1/horses/{horse_id}/poll'),
+    },
+    'dono': {
+        ('PATCH', '/api/v1/horses/{horse_id}'),
+        ('POST', '/api/v1/horses/{horse_id}/poll'),
+    },
+}
+HORSE_FIELDS = {
+    'veterinario': {
+        'name', 'breed', 'weight_kg', 'sex', 'birth_date', 'coat', 'notes',
+        'height_cm', 'girth_cm', 'length_cm', 'cannon_cm',
+    },
+    'dono': {'training_level'},
+}
+
+
+def _users() -> dict:
+    """usuário -> (senha, papel)."""
+    return {
+        'veterinario': (settings.VET_PASSWORD, 'veterinario'),
+        'dono': (settings.DONO_PASSWORD, 'dono'),
+        settings.AUTH_USERNAME: (settings.AUTH_PASSWORD, 'admin'),
+    }
+
+
+def create_access_token(username: str, role: str = 'admin') -> str:
     """Gera um JWT assinado para o usuário autenticado no login."""
     expire = datetime.now(timezone.utc) + timedelta(
         minutes=settings.JWT_EXPIRE_MINUTES
     )
-    payload = {'sub': username, 'exp': expire}
+    payload = {'sub': username, 'role': role, 'exp': expire}
     return jwt.encode(
         payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
     )
 
 
-def verify_credentials(username: str, password: str) -> bool:
-    """Confere usuário/senha contra os valores fixos (comparação constante)."""
-    user_ok = hmac.compare_digest(username, settings.AUTH_USERNAME)
-    pass_ok = hmac.compare_digest(password, settings.AUTH_PASSWORD)
-    return user_ok and pass_ok
+def verify_credentials(username: str, password: str) -> str | None:
+    """Papel do usuário se a senha confere (comparação constante), senão None."""
+    found = None
+    for user, (pwd, role) in _users().items():
+        user_ok = hmac.compare_digest(username, user)
+        pass_ok = hmac.compare_digest(password, pwd)
+        if user_ok and pass_ok:
+            found = role
+    return found
 
 
-def get_current_user(token: str = Depends(oauth2_scheme)) -> str:
-    """Dependência: valida o Bearer JWT e retorna o usuário.
-
-    Levanta 401 se o token estiver ausente, inválido ou expirado.
-    """
+def get_role(token: str = Depends(oauth2_scheme)) -> str:
+    """Papel do usuário do Bearer JWT (401 se ausente, inválido ou expirado)."""
     try:
         payload = jwt.decode(
             token,
@@ -59,7 +93,22 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> str:
         )
     except jwt.PyJWTError:
         raise _UNAUTHORIZED
-    username = payload.get('sub')
-    if not username:
+    if not payload.get('sub'):
         raise _UNAUTHORIZED
-    return username
+    return payload.get('role', 'admin')  # login com Google: admin
+
+
+def get_current_user(request: Request, role: str = Depends(get_role)) -> str:
+    """Dependência das rotas do portal: confere o login e se o papel pode
+    mudar esta rota (403 senão). Ler vale para todos. Devolve o papel."""
+    path = getattr(request.scope.get('route'), 'path', '')
+    method = request.method
+    if (
+        method not in ('GET', 'HEAD', 'OPTIONS')
+        and role != 'admin'
+        and (method, path) not in WRITES.get(role, ())
+    ):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, 'Seu acesso não permite esta alteração'
+        )
+    return role

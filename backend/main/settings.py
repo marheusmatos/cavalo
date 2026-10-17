@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     # --- Autenticação usuário/senha (login JWT em /auth/token) -------------
     AUTH_USERNAME: str = 'admin'
     AUTH_PASSWORD: str = 'admin'
+    # Os outros acessos: usuários fixos 'veterinario' e 'dono'.
+    VET_PASSWORD: str = 'veterinario'
+    DONO_PASSWORD: str = 'dono'
     # Segredo para assinar/verificar o JWT. TROQUE em produção (>= 32 bytes).
     JWT_SECRET_KEY: str = 'change-me-in-production-please-32b!'
     JWT_ALGORITHM: str = 'HS256'

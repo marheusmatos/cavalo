@@ -26,13 +26,14 @@ async def login(
     Recebe form (username/password), formato usado pelo botão "Authorize" do
     Swagger. Rate limit aplicado pelo fastapi-guard.
     """
-    if not verify_credentials(form_data.username, form_data.password):
+    role = verify_credentials(form_data.username, form_data.password)
+    if not role:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail='Usuário ou senha inválidos',
         )
-    token = create_access_token(form_data.username)
-    return {'access_token': token, 'token_type': 'bearer'}
+    token = create_access_token(form_data.username, role)
+    return {'access_token': token, 'token_type': 'bearer', 'role': role}
 
 
 @auth_router.get('/google/login')

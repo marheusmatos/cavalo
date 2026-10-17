@@ -41,6 +41,8 @@ class Horse(Base):
     fence_lat = Column(Float, nullable=True)
     fence_lon = Column(Float, nullable=True)
     fence_radius_m = Column(Float, nullable=True)
+    # Intensidade do treino: easy, medium ou hard (o dono do cavalo muda).
+    training_level = Column(String(6), nullable=True)
     # Limites de alerta do sensor (None = sem limite): bpm, °C e intensidade
     # do movimento (g, média de 10 s). alert_ver muda a cada alteração: o
     # ESP32 compara com a do /alertas.txt do cartão e baixa de novo.

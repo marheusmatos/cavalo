@@ -615,3 +615,59 @@ def test_chrome_com_update_pendente_usa_versao_do_binario(monkeypatch):
     )
     assert findhub._chrome() == 'driver'
     assert calls == [None, 153]
+
+
+# --- Acessos -----------------------------------------------------------------
+def _login(user, password=None):
+    r = client.post(
+        '/auth/token', data={'username': user, 'password': password or user}
+    )
+    assert r.status_code == 200, r.text
+    return r.json()['role'], {
+        'Authorization': f'Bearer {r.json()["access_token"]}'
+    }
+
+
+def test_tres_acessos(auth):
+    assert client.post(
+        '/auth/token', data={'username': 'dono', 'password': 'admin'}
+    ).status_code == 401
+    vet_role, vet = _login('veterinario')
+    dono_role, dono = _login('dono')
+    assert (vet_role, dono_role, _login('admin')[0]) == (
+        'veterinario', 'dono', 'admin'
+    )
+    base = '/api/v1/horses'
+    # Só o admin cadastra.
+    for h in (vet, dono):
+        assert client.post(f'{base}/', json={'name': 'X'}, headers=h).status_code == 403
+    horse = client.post(f'{base}/', json={'name': 'Acesso'}, headers=auth).json()
+    url = f'{base}/{horse["id"]}'
+    # Todos veem tudo.
+    for h in (vet, dono):
+        assert client.get(url, headers=h).status_code == 200
+        assert client.get(f'{url}/meals', headers=h).status_code == 200
+        assert client.get(f'{url}/sensor/alerts', headers=h).status_code == 200
+        assert client.get('/api/v1/motion/patterns', headers=h).status_code == 200
+    # Dono: só a intensidade do treino.
+    r = client.patch(url, json={'training_level': 'hard'}, headers=dono)
+    assert r.status_code == 200 and r.json()['training_level'] == 'hard'
+    assert client.patch(url, json={'weight_kg': 400}, headers=dono).status_code == 403
+    assert client.patch(url, json={'training_level': 'x'}, headers=dono).status_code == 422
+    meal = {'weekdays': [0], 'shift': 'M', 'time': '07:00', 'kg': 3, 'x': 40, 'y': 35, 'z': 25}
+    assert client.put(f'{url}/meals', json=meal, headers=dono).status_code == 403
+    # Veterinário: características e nutrição, não o treino nem a cerca.
+    r = client.patch(url, json={'weight_kg': 450, 'breed': 'Árabe'}, headers=vet)
+    assert r.status_code == 200 and r.json()['weight_kg'] == 450
+    assert client.patch(url, json={'training_level': 'easy'}, headers=vet).status_code == 403
+    assert client.patch(url, json={'fence_radius_m': 50}, headers=vet).status_code == 403
+    assert client.put(f'{url}/meals', json=meal, headers=vet).status_code == 200
+    assert client.delete(f'{url}/meals/0/M', headers=vet).status_code == 204
+    # Limites, sensor, padrões e remoção: só o admin.
+    for h in (vet, dono):
+        assert client.put(f'{url}/sensor/alerts', json={}, headers=h).status_code == 403
+        assert client.put(f'{url}/sensor/settings', json={}, headers=h).status_code == 403
+        assert client.post('/api/v1/motion/train', headers=h).status_code == 403
+        assert client.delete(url, headers=h).status_code == 403
+    assert client.patch(url, json={'fence_radius_m': 50}, headers=auth).status_code == 200
+    assert client.delete(url, headers=auth).status_code == 204

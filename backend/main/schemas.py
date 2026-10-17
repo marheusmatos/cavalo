@@ -36,6 +36,8 @@ class HorseSchema(BaseModel):
     fence_lat: Optional[float] = Field(default=None, ge=-90, le=90)
     fence_lon: Optional[float] = Field(default=None, ge=-180, le=180)
     fence_radius_m: Optional[float] = Field(default=None, gt=0)
+    # Intensidade do treino (o dono do cavalo muda).
+    training_level: Optional[Literal['easy', 'medium', 'hard']] = None
 
     @field_validator('sensor_id')
     @classmethod
@@ -213,3 +215,4 @@ class LabelIn(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str = 'bearer'
+    role: str = 'admin'  # admin, veterinario ou dono

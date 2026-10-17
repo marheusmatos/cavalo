@@ -27,7 +27,7 @@ from main.schemas import (
     MealUpsert,
     Track,
 )
-from main.security import get_current_user
+from main.security import HORSE_FIELDS, get_current_user
 
 horse_router = APIRouter(
     prefix='/api/v1/horses',
@@ -114,10 +114,17 @@ def get_horse(horse_id: int, session: Session = Depends(get_session)):
 
 @horse_router.patch('/{horse_id}', response_model=HorsePublic)
 def update_horse(
-    horse_id: int, data: HorseUpdate, session: Session = Depends(get_session)
+    horse_id: int,
+    data: HorseUpdate,
+    session: Session = Depends(get_session),
+    role: str = Depends(get_current_user),
 ):
     horse = _horse(session, horse_id)
     changes = data.model_dump(exclude_unset=True)
+    if role != 'admin' and not set(changes) <= HORSE_FIELDS[role]:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, 'Seu acesso não permite esta alteração'
+        )
     _sensor_free(session, changes.get('sensor_id'), horse_id)
     for field, value in changes.items():
         setattr(horse, field, value)
